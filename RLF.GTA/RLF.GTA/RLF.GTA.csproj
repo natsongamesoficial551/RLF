@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{039ED762-946A-4E20-97F8-6B973A2FEE1E}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>RLF.GTA</RootNamespace>
+    <AssemblyName>RLF.GTA</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="iFruitAddon2">
+      <HintPath>D:\GTA V MODS\iFruitAddon2-3.1.1\iFruitAddon2.dll</HintPath>
+    </Reference>
+    <Reference Include="LemonUI.SHVDN3">
+      <HintPath>D:\GTA V MODS\LemonUI\SHVDN3\LemonUI.SHVDN3.dll</HintPath>
+    </Reference>
+    <Reference Include="NativeUI">
+      <HintPath>D:\GTA V MODS\Release\NativeUI.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>..\..\..\..\..\Downloads\Json130r4\Bin\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="RLF.Core">
+      <HintPath>..\..\..\..\..\OneDrive\Documentos\MODPACK RLF\ARQUIVOS PRINCIPAIS\RLF.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="ScriptHookVDotNet3">
+      <HintPath>D:\GTA V MODS\ScriptHookVDotNet-v3.7.0-nightly.87\ScriptHookVDotNet3.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AmmuNation\AmmuNationEntry.cs" />
+    <Compile Include="AmmuNation\AmmuNationLocations.cs" />
+    <Compile Include="AmmuNation\AmmuNationSystem.cs" />
+    <Compile Include="Bootstrap\CharacterCreatorBootstrap.cs" />
+    <Compile Include="CharacterCreator\CharacterCreatorScript.cs" />
+    <Compile Include="CharacterCreator\Core\VehicleManager.cs" />
+    <Compile Include="CharacterCreator\Core\WeaponManager.cs" />
+    <Compile Include="CharacterCreator\Data\CharacterData.cs" />
+    <Compile Include="CharacterCreator\Data\CharacterVehicle.cs" />
+    <Compile Include="CharacterCreator\Data\CharacterWeapons.cs" />
+    <Compile Include="CharacterCreator\Storage\CharacterEconomyStorage.cs" />
+    <Compile Include="CharacterCreator\World\CharacterPositionManager.cs" />
+    <Compile Include="CharacterCreator\Core\CharacterBuilder.cs" />
+    <Compile Include="CharacterCreator\Core\CharacterCreatorManager.cs" />
+    <Compile Include="CharacterCreator\Core\CharacterCreatorSystem.cs" />
+    <Compile Include="CharacterCreator\Core\CharacterSlotManager.cs" />
+    <Compile Include="CharacterCreator\Core\FreemodePeds.cs" />
+    <Compile Include="CharacterCreator\Integration\EconomyIntegration.cs" />
+    <Compile Include="CharacterCreator\Integration\IdentityIntegration.cs" />
+    <Compile Include="CharacterCreator\Storage\CharacterIniStorage.cs" />
+    <Compile Include="CharacterCreator\Utils\CharacterDataCapture.cs" />
+    <Compile Include="CharacterCreator\World\CreatorEnvironment.cs" />
+    <Compile Include="CharacterCreator\World\CreatorLocations.cs" />
+    <Compile Include="Compatibility\EngineSafetyProfile.cs" />
+    <Compile Include="Compatibility\GtaVersionManager.cs" />
+    <Compile Include="Compatibility\SafeGameActions.cs" />
+    <Compile Include="CoreIntegration\EconomyBridge.cs" />
+    <Compile Include="CoreIntegration\Identity\AircraftLicenseObserver.cs" />
+    <Compile Include="CoreIntegration\Identity\DrivingLicenseObserver.cs" />
+    <Compile Include="CoreIntegration\Identity\DrivingSchool\DrivingSchoolController.cs" />
+    <Compile Include="CoreIntegration\Identity\DrivingSchool\DrivingTestContext.cs" />
+    <Compile Include="CoreIntegration\Identity\DrivingSchool\DrivingTestRoutes.cs" />
+    <Compile Include="CoreIntegration\Identity\DrivingSchool\DrivingTestSession.cs" />
+    <Compile Include="CoreIntegration\Identity\FlightSchool\FlightSchoolController.cs" />
+    <Compile Include="CoreIntegration\Identity\FlightSchool\FlightTestContext.cs" />
+    <Compile Include="CoreIntegration\Identity\FlightSchool\FlightTestRoutes.cs" />
+    <Compile Include="CoreIntegration\Identity\FlightSchool\FlightTestSession.cs" />
+    <Compile Include="CoreIntegration\Identity\IdentityObserverManager.cs" />
+    <Compile Include="CoreIntegration\Identity\IdentityOverlay.cs" />
+    <Compile Include="CoreIntegration\Identity\IdentityOverlayController.cs" />
+    <Compile Include="CoreIntegration\Identity\LicenseTestAvailabilityService.cs" />
+    <Compile Include="CoreIntegration\Identity\WeaponLicenseObserver.cs" />
+    <Compile Include="CoreIntegration\Identity\WeaponSchool\WeaponSchoolController.cs" />
+    <Compile Include="CoreIntegration\Identity\WeaponSchool\WeaponTestConfig.cs" />
+    <Compile Include="CoreIntegration\Identity\WeaponSchool\WeaponTestContext.cs" />
+    <Compile Include="CoreIntegration\Identity\WeaponSchool\WeaponTestScoring.cs" />
+    <Compile Include="CoreIntegration\Identity\WeaponSchool\WeaponCombatTestSession.cs" />
+    <Compile Include="CoreIntegration\Identity\WeaponShop\WeaponShopAccessController.cs" />
+    <Compile Include="CoreIntegration\IllegalWeapons\IllegalWeaponMarketController.cs" />
+    <Compile Include="CoreIntegration\Needs\EatDrinkIntegration.cs" />
+    <Compile Include="CoreIntegration\Needs\NeedsFeedbackIntegration.cs" />
+    <Compile Include="CoreIntegration\Needs\NeedsIntegrationSystem.cs" />
+    <Compile Include="CoreIntegration\Needs\NeedsWarningIntegration.cs" />
+    <Compile Include="CoreIntegration\Needs\SleepIntegration.cs" />
+    <Compile Include="CoreIntegration\Needs\StaminaIntegration.cs" />
+    <Compile Include="CoreIntegration\UI\MultiCharacterEconomyHUD.cs" />
+    <Compile Include="CoreIntegration\UI\NeedsOverlay.cs" />
+    <Compile Include="CoreIntegration\UI\NeedsOverlayConfigLoader.cs" />
+    <Compile Include="CoreIntegration\UI\NeedsOverlaySettings.cs" />
+    <Compile Include="CoreIntegration\Weather\WeatherIntegration.cs" />
+    <Compile Include="Crime\CrimeDetection.cs" />
+    <Compile Include="Crime\CrimeHeatFeedback.cs" />
+    <Compile Include="Crime\CrimeLogger.cs" />
+    <Compile Include="Crime\CrimeManager.cs" />
+    <Compile Include="Crime\CrimeReportScheduler.cs" />
+    <Compile Include="Crime\CrimeWitnessScanner.cs" />
+    <Compile Include="Crime\EstablishmentData.cs" />
+    <Compile Include="Crime\EstablishmentDatabase.cs" />
+    <Compile Include="Crime\EstablishmentRobbery.cs" />
+    <Compile Include="Crime\Gangs\GangActivitySystem.cs" />
+    <Compile Include="Crime\Gangs\GangManager.cs" />
+    <Compile Include="Crime\NPCReactionController.cs" />
+    <Compile Include="Crime\NPCReactionProfile.cs" />
+    <Compile Include="Crime\NPCWallet.cs" />
+    <Compile Include="Crime\RobberyInteraction.cs" />
+    <Compile Include="Crime\VehicleTheftBehavior.cs" />
+    <Compile Include="Dealership\DealershipCatalog.cs" />
+    <Compile Include="Dealership\DealershipController.cs" />
+    <Compile Include="Dealership\DealershipMenu.cs" />
+    <Compile Include="Entities\GTAEntityBridge.cs" />
+    <Compile Include="GameBridge.cs" />
+    <Compile Include="GTAOnly\Awareness\AwarenessBootstrap.cs" />
+    <Compile Include="GTAOnly\Awareness\AwarenessConfig.cs" />
+    <Compile Include="GTAOnly\Awareness\Effects\AudioEffects.cs" />
+    <Compile Include="GTAOnly\Awareness\Effects\CameraEffects.cs" />
+    <Compile Include="GTAOnly\Awareness\Systems\FatigueAwareness.cs" />
+    <Compile Include="GTAOnly\LivingWorld\HeightAwareness.cs" />
+    <Compile Include="GTAOnly\Awareness\Systems\MovementAwareness.cs" />
+    <Compile Include="GTAOnly\Awareness\Systems\StressAwareness.cs" />
+    <Compile Include="GTAOnly\LivingWorld\Core\ActiveScene.cs" />
+    <Compile Include="GTAOnly\LivingWorld\Core\WorldEvent.cs" />
+    <Compile Include="GTAOnly\LivingWorld\Core\WorldEventContext.cs" />
+    <Compile Include="GTAOnly\LivingWorld\Core\WorldEventManager.cs" />
+    <Compile Include="GTAOnly\LivingWorld\Events\TrafficAccidentEvent.cs" />
+    <Compile Include="GTAOnly\LivingWorld\Events\StreetRobberyEvent.cs" />
+    <Compile Include="GTAOnly\LivingWorld\Events\VehicleBreakdownEvent.cs" />
+    <Compile Include="GTAOnly\LivingWorld\LivingWorldBootstrap.cs" />
+    <Compile Include="GTAOnly\LivingWorld\LivingWorldConfig.cs" />
+    <Compile Include="GTAOnly\Time\RealTimeClockSystem.cs" />
+    <Compile Include="Jobs\Postal\PostalBikeManager.cs" />
+    <Compile Include="Jobs\Postal\PostalConfig.cs" />
+    <Compile Include="Jobs\Postal\PostalJob.cs" />
+    <Compile Include="Jobs\Postal\PostalJobController.cs" />
+    <Compile Include="Jobs\Postal\PostalLocationProvider.cs" />
+    <Compile Include="Jobs\Postal\PostalPhoneHandler.cs" />
+    <Compile Include="Jobs\Postal\PostalShiftManager.cs" />
+    <Compile Include="Jobs\Postal\PostalTaskManager.cs" />
+    <Compile Include="Phone\Apps\BankPhoneApp.cs" />
+    <Compile Include="Integration\IntegratedCharacterEconomySystem.cs" />
+    <Compile Include="Jobs\Delivery\DeliveryConfig.cs" />
+    <Compile Include="Jobs\Delivery\DeliveryJob.cs" />
+    <Compile Include="Jobs\Delivery\DeliveryJobController.cs" />
+    <Compile Include="Jobs\Delivery\DeliveryLocationProvider.cs" />
+    <Compile Include="Jobs\Delivery\DeliveryPhoneHandler.cs" />
+    <Compile Include="Jobs\Delivery\DeliveryShiftManager.cs" />
+    <Compile Include="Jobs\Delivery\DeliveryTaskManager.cs" />
+    <Compile Include="Jobs\Delivery\DeliveryVehicleManager.cs" />
+    <Compile Include="Jobs\Uber\Controller\UberJobController.cs" />
+    <Compile Include="Jobs\Uber\Core\UberAccount.cs" />
+    <Compile Include="Jobs\Uber\Core\UberJob.cs" />
+    <Compile Include="Jobs\Uber\Core\UberSettings.cs" />
+    <Compile Include="Jobs\Uber\Events\EventType.cs" />
+    <Compile Include="Jobs\Uber\Events\RandomEventSystem.cs" />
+    <Compile Include="Jobs\Uber\Events\TrafficEvent.cs" />
+    <Compile Include="Jobs\Uber\Events\VIPRideEvent.cs" />
+    <Compile Include="Jobs\Uber\History\HistoryManager.cs" />
+    <Compile Include="Jobs\Uber\History\RideHistory.cs" />
+    <Compile Include="Jobs\Uber\History\RideRecord.cs" />
+    <Compile Include="Jobs\Uber\Passenger\PassengerBehavior.cs" />
+    <Compile Include="Jobs\Uber\Passenger\PassengerEventType.cs" />
+    <Compile Include="Jobs\Uber\Passenger\PassengerNPC.cs" />
+    <Compile Include="Jobs\Uber\Penalty\BanType.cs" />
+    <Compile Include="Jobs\Uber\Penalty\CancellationTracker.cs" />
+    <Compile Include="Jobs\Uber\Penalty\PenaltySystem.cs" />
+    <Compile Include="Jobs\Uber\Phone\UberAppInterface.cs" />
+    <Compile Include="Jobs\Uber\Phone\UberPhoneHandler.cs" />
+    <Compile Include="Jobs\Uber\Rating\RatingCalculator.cs" />
+    <Compile Include="Jobs\Uber\Rating\RatingSystem.cs" />
+    <Compile Include="Jobs\Uber\Rating\RatingThresholds.cs" />
+    <Compile Include="Jobs\Uber\Ride\RideCategory.cs" />
+    <Compile Include="Jobs\Uber\Ride\RideManager.cs" />
+    <Compile Include="Jobs\Uber\Ride\RidePaymentCalculator.cs" />
+    <Compile Include="Jobs\Uber\Ride\RideRequest.cs" />
+    <Compile Include="Jobs\Uber\Ride\RideState.cs" />
+    <Compile Include="Jobs\Uber\Storage\IUberStore.cs" />
+    <Compile Include="Jobs\Uber\Storage\UberStore.cs" />
+    <Compile Include="Jobs\Uber\UI\UberCategorySelector.cs" />
+    <Compile Include="Jobs\Uber\UI\UberHUD.cs" />
+    <Compile Include="Jobs\Uber\UI\UberNotificationSystem.cs" />
+    <Compile Include="Jobs\Uber\Vehicle\UberVehicleCategory.cs" />
+    <Compile Include="Jobs\Uber\Vehicle\UberVehicleValidator.cs" />
+    <Compile Include="Jobs\Uber\Vehicle\VehicleConditionChecker.cs" />
+    <Compile Include="Law\Police\AirPoliceApproachController.cs" />
+    <Compile Include="Law\Police\AirPoliceApproachState.cs" />
+    <Compile Include="Law\Police\AirPoliceDetectionService.cs" />
+    <Compile Include="Law\Police\AirPolicePatrolManager.cs" />
+    <Compile Include="Law\Police\AirPoliceTarget.cs" />
+    <Compile Include="Law\Police\PoliceApproachController.cs" />
+    <Compile Include="Law\Police\PoliceApproachState.cs" />
+    <Compile Include="Law\Police\PoliceDecisionService.cs" />
+    <Compile Include="Law\Police\PoliceDetectionService.cs" />
+    <Compile Include="Law\Police\PolicePatrolManager.cs" />
+    <Compile Include="Law\Police\PolicePenaltyService.cs" />
+    <Compile Include="Law\Police\PoliceSpawnConfig.cs" />
+    <Compile Include="Law\Police\PoliceSpawner.cs" />
+    <Compile Include="Law\Police\PoliceTarget.cs" />
+    <Compile Include="Law\Police\PoliceUnit.cs" />
+    <Compile Include="Law\Police\PoliceUnitState.cs" />
+    <Compile Include="Law\Police\PoliceUnitType.cs" />
+    <Compile Include="Performance\PlayerSnapshotCapture.cs" />
+    <Compile Include="Phone\PhoneContactManager.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Bootstrap\RLFBootstrap.cs" />
+    <Compile Include="Bootstrap\ShutdownHandler.cs" />
+    <Compile Include="Bootstrap\TickManager.cs" />
+    <Compile Include="RLFEntry.cs" />
+    <Compile Include="Vehicles\VehicleAbandonWatcher.cs" />
+    <Compile Include="Vehicles\VehicleGarageEntryWatcher.cs" />
+    <Compile Include="Vehicles\VehicleGarageManualStore.cs" />
+    <Compile Include="Vehicles\VehicleGarageMenu.cs" />
+    <Compile Include="Vehicles\VehicleImpoundMenu.cs" />
+    <Compile Include="Vehicles\VehicleOwnershipBridge.cs" />
+    <Compile Include="Vehicles\VehicleWorldSpawner.cs" />
+    <Compile Include="WorldOverrides\VanillaImpoundBlocker.cs" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>xcopy /Y "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V Enhanced\scripts\RLF\"
+
+xcopy /Y "$(TargetPath)" "C:\Users\borge\OneDrive\Documentos\MODPACK RLF\ARQUIVOS PRINCIPAIS"
+
+xcopy /Y "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V\Scripts\RLF"
+</PostBuildEvent>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,9 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Project Path="RLF.Core/RLF.Core.csproj" Id="99e31777-5350-40d2-90c4-d834c05fa137">
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
+</Solution>

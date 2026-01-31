@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{99E31777-5350-40D2-90C4-D834C05FA137}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>RLF.Core</RootNamespace>
+    <AssemblyName>RLF.Core</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>..\..\..\..\..\Downloads\Json130r4\Bin\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="CharacterCreator\Config\CharacterCreatorConfig.cs" />
+    <Compile Include="CharacterCreator\Config\CharacterCreatorSettings.cs" />
+    <Compile Include="CharacterCreator\Data\CharacterHair.cs" />
+    <Compile Include="CharacterCreator\Data\CharacterClothing.cs" />
+    <Compile Include="CharacterCreator\Data\CharacterData.cs" />
+    <Compile Include="CharacterCreator\Data\CharacterGenetics.cs" />
+    <Compile Include="CharacterCreator\Data\CharacterOverlays.cs" />
+    <Compile Include="CharacterCreator\Data\CharacterPreset.cs" />
+    <Compile Include="CharacterCreator\Data\CharacterProps.cs" />
+    <Compile Include="CharacterCreator\Enums\CharacterGender.cs" />
+    <Compile Include="CharacterCreator\Enums\ComponentType.cs" />
+    <Compile Include="CharacterCreator\Enums\CreatorState.cs" />
+    <Compile Include="CharacterCreator\Enums\FaceFeature.cs" />
+    <Compile Include="CharacterCreator\Enums\OverlayType.cs" />
+    <Compile Include="CharacterCreator\Enums\ParentType.cs" />
+    <Compile Include="CharacterCreator\Enums\PropType.cs" />
+    <Compile Include="CharacterCreator\Events\CharacterCreatorEvents.cs" />
+    <Compile Include="CharacterCreator\Integration\CharacterEconomyBridge.cs" />
+    <Compile Include="CharacterCreator\Interfaces\ICharacterBuilder.cs" />
+    <Compile Include="CharacterCreator\Interfaces\ICharacterCreatorService.cs" />
+    <Compile Include="CharacterCreator\Interfaces\ICharacterStore.cs" />
+    <Compile Include="CharacterCreator\Storage\CharacterMigration.cs" />
+    <Compile Include="CharacterCreator\Storage\CharacterStore.cs" />
+    <Compile Include="Crime\Classes de dados\CrimeCase.cs" />
+    <Compile Include="Crime\Classes de dados\CrimeEvidence.cs" />
+    <Compile Include="Crime\Classes de dados\CrimeRecord.cs" />
+    <Compile Include="Crime\Classes de dados\SuspectDescription.cs" />
+    <Compile Include="Crime\Enums\CrimeFlags.cs" />
+    <Compile Include="Crime\Enums\CrimeSeverity.cs" />
+    <Compile Include="Crime\Enums\CrimeType.cs" />
+    <Compile Include="Crime\Enums\HeatState.cs" />
+    <Compile Include="Crime\Gangs\GangData.cs" />
+    <Compile Include="Crime\Gangs\Missions\GangMission.cs" />
+    <Compile Include="Crime\Gangs\GangSystem.cs" />
+    <Compile Include="Crime\Gangs\GangType.cs" />
+    <Compile Include="Crime\Gangs\PlayerGangMembership.cs" />
+    <Compile Include="Crime\Gangs\TerritoryData.cs" />
+    <Compile Include="Crime\Gangs\TerritoryDatabase.cs" />
+    <Compile Include="Crime\Sistema central\CrimeEvents.cs" />
+    <Compile Include="Crime\Sistema central\CrimeSystem.cs" />
+    <Compile Include="Debug\DebugAutoDump.cs" />
+    <Compile Include="Debug\DebugChannel.cs" />
+    <Compile Include="Debug\DebugConfig.cs" />
+    <Compile Include="Debug\DebugLevel.cs" />
+    <Compile Include="Debug\DebugScope.cs" />
+    <Compile Include="Debug\DebugSnapshot.cs" />
+    <Compile Include="Debug\RLFDebug.cs" />
+    <Compile Include="Economy\Bank\BankSystem.cs" />
+    <Compile Include="Economy\Debt\DebtModule.cs" />
+    <Compile Include="Economy\Debt\DebtSettings.cs" />
+    <Compile Include="Economy\Debt\DebtState.cs" />
+    <Compile Include="Economy\Debt\Events\DebtEvents.cs" />
+    <Compile Include="Economy\EconomySystem.cs" />
+    <Compile Include="Economy\Expenses\Events\ExpenseEvents.cs" />
+    <Compile Include="Economy\Expenses\ExpenseModule.cs" />
+    <Compile Include="Economy\Expenses\ExpenseSettings.cs" />
+    <Compile Include="Economy\Expenses\ExpenseType.cs" />
+    <Compile Include="Economy\Ledger\LedgerEntry.cs" />
+    <Compile Include="Economy\Ledger\TransactionLedger.cs" />
+    <Compile Include="Economy\Transactions\EconomyTransaction.cs" />
+    <Compile Include="Economy\Transactions\TransactionLegality.cs" />
+    <Compile Include="Economy\Transactions\TransactionOrigin.cs" />
+    <Compile Include="Economy\Transactions\TransactionType.cs" />
+    <Compile Include="Economy\Wallet\Events\WalletEvents.cs" />
+    <Compile Include="Economy\Wallet\Wallet.cs" />
+    <Compile Include="Economy\Wallet\WalletSettings.cs" />
+    <Compile Include="Entities\EntityLifetimePolicy.cs" />
+    <Compile Include="Entities\EntityRegistry.cs" />
+    <Compile Include="Entities\EntityType.cs" />
+    <Compile Include="Entities\TrackedEntity.cs" />
+    <Compile Include="Identity\Debug\IdentityDebugListener.cs" />
+    <Compile Include="Identity\DocumentSystem.cs" />
+    <Compile Include="Identity\Documents\IdentityDocument.cs" />
+    <Compile Include="Identity\Documents\IdentityLicense.cs" />
+    <Compile Include="Identity\Enums\DocumentStatus.cs" />
+    <Compile Include="Identity\Enums\DocumentType.cs" />
+    <Compile Include="Identity\Enums\LicenseType.cs" />
+    <Compile Include="Identity\Enums\ViolationSeverity.cs" />
+    <Compile Include="Identity\Enums\ViolationType.cs" />
+    <Compile Include="Identity\Events\DocumentChangedEvent.cs" />
+    <Compile Include="Identity\Events\ViolationDetectedEvent.cs" />
+    <Compile Include="Identity\IdentitySettings.cs" />
+    <Compile Include="Identity\IdentitySettingsLoader.cs" />
+    <Compile Include="Identity\Storage\IIdentityStore.cs" />
+    <Compile Include="Identity\Storage\IniIdentityStore.cs" />
+    <Compile Include="IO\AsyncFileQueue.cs" />
+    <Compile Include="IO\FileOperationResult.cs" />
+    <Compile Include="IO\SafeFileReader.cs" />
+    <Compile Include="IO\SafeFileWriter.cs" />
+    <Compile Include="Jobs\Core\JobBase.cs" />
+    <Compile Include="Jobs\Core\JobRegistry.cs" />
+    <Compile Include="Jobs\Core\JobSystem.cs" />
+    <Compile Include="Jobs\Enums\JobStatus.cs" />
+    <Compile Include="Jobs\Enums\JobType.cs" />
+    <Compile Include="Jobs\Events\ShiftCompletedEvent.cs" />
+    <Compile Include="Jobs\Events\ShiftStartedEvent.cs" />
+    <Compile Include="Jobs\Events\TaskCompletedEvent.cs" />
+    <Compile Include="Jobs\Payment\PaymentCalculator.cs" />
+    <Compile Include="Jobs\Payment\PaymentSettings.cs" />
+    <Compile Include="Jobs\Shift\ShiftSchedule.cs" />
+    <Compile Include="Jobs\Shift\ShiftState.cs" />
+    <Compile Include="Jobs\Shift\ShiftType.cs" />
+    <Compile Include="Law\LawActionType.cs" />
+    <Compile Include="Law\LawRulesConfig.cs" />
+    <Compile Include="Law\LawSystem.cs" />
+    <Compile Include="Law\LawRule.cs" />
+    <Compile Include="Law\Police\PoliceSystem.cs" />
+    <Compile Include="Law\Police\PoliceUnitModel.cs" />
+    <Compile Include="Law\Police\PoliceUnitStatus.cs" />
+    <Compile Include="Loggin\LogBuffer.cs" />
+    <Compile Include="Loggin\LogEntry.cs" />
+    <Compile Include="Loggin\LogRateLimiter.cs" />
+    <Compile Include="Loggin\OptimizedLogger.cs" />
+    <Compile Include="Needs\Events\NeedChangedEvent.cs" />
+    <Compile Include="Needs\Events\NeedCriticalEvent.cs" />
+    <Compile Include="Needs\NeedsSettings.cs" />
+    <Compile Include="Needs\NeedsSettingsLoader.cs" />
+    <Compile Include="Needs\NeedsSystem.cs" />
+    <Compile Include="Needs\NeedState.cs" />
+    <Compile Include="Needs\NeedType.cs" />
+    <Compile Include="Performance\NativeCache.cs" />
+    <Compile Include="Performance\PerformanceConfig.cs" />
+    <Compile Include="Performance\PerformanceMetrics.cs" />
+    <Compile Include="Performance\PlayerSnapshot.cs" />
+    <Compile Include="Performance\TickProfiler.cs" />
+    <Compile Include="Pooling\IPoolable.cs" />
+    <Compile Include="Pooling\ListPool.cs" />
+    <Compile Include="Pooling\ObjectPool.cs" />
+    <Compile Include="Pooling\StringBuilderPool.cs" />
+    <Compile Include="RLFCore.cs" />
+    <Compile Include="Configuration\IniReader.cs" />
+    <Compile Include="Events\EventArgs\RLFEventArgs.cs" />
+    <Compile Include="Events\EventManager.cs" />
+    <Compile Include="Logging\Logger.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Scheduling\ISchedulable.cs" />
+    <Compile Include="Scheduling\ScheduledTask.cs" />
+    <Compile Include="Scheduling\TaskPriority.cs" />
+    <Compile Include="Scheduling\TaskScheduler.cs" />
+    <Compile Include="Systems\CoreLifecycleSystem.cs" />
+    <Compile Include="Systems\RealTimeWeatherSystem.cs" />
+    <Compile Include="Systems\SystemBase.cs" />
+    <Compile Include="Systems\SystemRegistry.cs" />
+    <Compile Include="Systems\TimeSystem.cs" />
+    <Compile Include="Utilities\SafeExecutor.cs" />
+    <Compile Include="Utilities\Vehicles\IniVehicleStore.cs" />
+    <Compile Include="Utilities\Vehicles\Storage\IVehicleStore.cs" />
+    <Compile Include="Utilities\Vehicles\VehicleData.cs" />
+    <Compile Include="Utilities\Vehicles\VehicleOwnershipSystem.cs" />
+    <Compile Include="Utilities\Vehicles\VehicleState.cs" />
+    <Compile Include="Watchdog\SystemHealthStatus.cs" />
+    <Compile Include="Watchdog\Watchdog.cs" />
+    <Compile Include="Watchdog\WatchdogConfig.cs" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>xcopy /Y "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V Enhanced\scripts\RLF\"
+
+xcopy /Y "$(TargetPath)" "C:\Users\borge\OneDrive\Documentos\MODPACK RLF"
+
+xcopy /Y "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V\scripts\RLF\"</PostBuildEvent>
+  </PropertyGroup>
+</Project>
