@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using RLF.Core.Configuration;
+﻿using RLF.Core.Configuration;
 using RLF.Core.Identity.Documents;
 using RLF.Core.Identity.Enums;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace RLF.Core.Identity.Storage
 {

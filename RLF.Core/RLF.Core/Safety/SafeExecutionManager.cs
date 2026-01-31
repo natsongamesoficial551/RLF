@@ -1,86 +1,114 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using GTA;
 
-namespace RLF.GTA.Safety
+namespace RLF.Core.Safety
 {
     /// <summary>
-    /// Gerenciador principal de execução segura do RLF.
-    /// OTIMIZADO: Menos overhead por tick, health checks espaçados.
+    /// Gerenciador principal de execu��o segura.
+    /// REFINADO: Prote��o contra shutdown duplo.
     /// </summary>
-    public sealed class SafeExecutionManager : Script
+    public sealed class SafeExecutionManager
     {
         #region Singleton
+
         private static SafeExecutionManager _instance;
-        public static SafeExecutionManager Instance => _instance;
+        private static readonly object _lock = new object();
+
+        public static SafeExecutionManager Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    lock (_lock)
+                    {
+                        if (_instance == null)
+                            _instance = new SafeExecutionManager();
+                    }
+                }
+                return _instance;
+            }
+        }
+
         #endregion
 
         #region Components
+
         private GameplayContextAnalyzer _contextAnalyzer;
         private AdaptiveTickController _tickController;
         private ScriptActivityMonitor _activityMonitor;
+
         #endregion
 
-        #region Private Fields
+        #region Fields
+
         private bool _initialized;
+        private bool _shutdown;  // REFINADO: flag para evitar shutdown duplo
         private int _frameCounter;
         private int _lastHealthCheckFrame;
         private int _crashesPrevented;
+        private string _logDirectory;
 
-        private const int HEALTH_CHECK_INTERVAL = 150;  // ~5 segundos
-        private const string LOG_DIR = "scripts/RLF/Logs";
+        private const int HEALTH_CHECK_INTERVAL = 150;
+
         #endregion
 
         #region Constructor
-        public SafeExecutionManager()
-        {
-            _instance = this;
-            Tick += OnTick;
-            Aborted += OnAborted;
-            Initialize();
-        }
+
+        private SafeExecutionManager() { }
+
+        #endregion
+
+        #region Properties
+
+        public bool IsInitialized => _initialized;
+        public bool IsShutdown => _shutdown;  // REFINADO: exp�e estado
+        public int CrashesPrevented => _crashesPrevented;
+
         #endregion
 
         #region Initialization
-        private void Initialize()
+
+        public void Initialize(string logDirectory, ISafetyDataProvider dataProvider)
         {
+            // REFINADO: evita re-init e init ap�s shutdown
+            if (_initialized || _shutdown)
+                return;
+
             try
             {
-                EnsureLogDirectory();
-                SafetyLogger.Instance.Initialize();
-                SafetyLogger.Instance.Log("=== RLF Safety System v2.0 (Optimized) ===");
+                _logDirectory = logDirectory;
+
+                if (!Directory.Exists(_logDirectory))
+                    Directory.CreateDirectory(_logDirectory);
+
+                SafetyLogger.Instance.Initialize(_logDirectory);
+                SafetyLogger.Instance.Log("=== RLF Safety System v2.0 (Core) ===");
 
                 _contextAnalyzer = GameplayContextAnalyzer.Instance;
                 _tickController = AdaptiveTickController.Instance;
                 _activityMonitor = ScriptActivityMonitor.Instance;
 
+                _contextAnalyzer.SetDataProvider(dataProvider);
                 _activityMonitor.RegisterScript("RLF.Safety.Core", "Safety Core");
 
                 _initialized = true;
-                SafetyLogger.Instance.Log("[SafeExecutionManager] Inicializado com sucesso");
+                SafetyLogger.Instance.Log("[SafeExecutionManager] Initialized successfully");
             }
             catch (Exception ex)
             {
-                SafetyLogger.Instance?.LogError($"[SafeExecutionManager] Erro init: {ex.Message}");
+                SafetyLogger.Instance?.LogError($"[SafeExecutionManager] Init error: {ex.Message}");
             }
         }
 
-        private void EnsureLogDirectory()
-        {
-            try
-            {
-                if (!Directory.Exists(LOG_DIR))
-                    Directory.CreateDirectory(LOG_DIR);
-            }
-            catch { }
-        }
         #endregion
 
-        #region Main Loop - OTIMIZADO
-        private void OnTick(object sender, EventArgs e)
+        #region Main Tick
+
+        public void Tick()
         {
-            if (!_initialized) return;
+            if (!_initialized || _shutdown) return;
 
             _frameCounter++;
 
@@ -89,16 +117,11 @@ namespace RLF.GTA.Safety
 
             try
             {
-                // 1. Análise de contexto (já otimizada internamente)
                 _contextAnalyzer.Analyze();
-
-                // 2. Processar ticks dos sistemas
                 _tickController.ProcessTick();
-
-                // 3. Monitor (já com throttle interno)
                 _activityMonitor.MonitorTick();
+                SafetyLogger.Instance.Tick();
 
-                // 4. Health check espaçado
                 if (_frameCounter - _lastHealthCheckFrame >= HEALTH_CHECK_INTERVAL)
                 {
                     _lastHealthCheckFrame = _frameCounter;
@@ -114,31 +137,22 @@ namespace RLF.GTA.Safety
             }
         }
 
-        private void OnAborted(object sender, EventArgs e)
-        {
-            var ctx = _contextAnalyzer.CurrentContext;
-            SafetyLogger.Instance?.Log("=== RLF Safety System Finalizando ===");
-            SafetyLogger.Instance?.Log($"Sessão: {ctx.Session.MinutesSinceStart} minutos");
-            SafetyLogger.Instance?.Log($"Frames: {_frameCounter}");
-            SafetyLogger.Instance?.Log($"Crashes prevenidos: {_crashesPrevented}");
-            SafetyLogger.Instance?.Log($"Survival mode ativo: {ctx.Session.SurvivalModeActive}");
-            SafetyLogger.Instance?.Shutdown();
-        }
         #endregion
 
         #region Public API
+
         public void RegisterSystem(
             string systemId,
             string displayName,
-            AdaptiveTickController.SystemCategory category,
-            AdaptiveTickController.TickPriority priority,
+            SystemCategory category,
+            TickPriority priority,
             Action tickCallback,
             int normalTickRateMs = 0,
             int reducedTickRateMs = 100,
             int minimalTickRateMs = 500,
             Func<bool> canRunCallback = null)
         {
-            if (!_initialized) return;
+            if (!_initialized || _shutdown) return;
 
             _activityMonitor.RegisterScript(systemId, displayName);
 
@@ -154,13 +168,13 @@ namespace RLF.GTA.Safety
         public void RegisterBatchSystem(
             string systemId,
             string displayName,
-            AdaptiveTickController.SystemCategory category,
+            SystemCategory category,
             Action tickCallback,
             int batchIntervalMs = 1000)
         {
             RegisterSystem(
                 systemId, displayName, category,
-                AdaptiveTickController.TickPriority.Batch,
+                TickPriority.Batch,
                 tickCallback, batchIntervalMs, batchIntervalMs * 2, batchIntervalMs * 4
             );
         }
@@ -173,7 +187,7 @@ namespace RLF.GTA.Safety
 
         public bool ExecuteSafely(string contextName, Action action)
         {
-            if (action == null) return false;
+            if (action == null || _shutdown) return false;
 
             var ctx = _activityMonitor.BeginExecution(contextName, "Safe");
             if (ctx == null) return false;
@@ -194,7 +208,7 @@ namespace RLF.GTA.Safety
 
         public T ExecuteSafely<T>(string contextName, Func<T> func, T defaultValue = default)
         {
-            if (func == null) return defaultValue;
+            if (func == null || _shutdown) return defaultValue;
 
             var ctx = _activityMonitor.BeginExecution(contextName, "Safe<T>");
             if (ctx == null) return defaultValue;
@@ -223,17 +237,17 @@ namespace RLF.GTA.Safety
             _tickController.ResumeSystem(systemId);
         }
 
-        public void PauseCategory(AdaptiveTickController.SystemCategory category, string reason = null)
+        public void PauseCategory(SystemCategory category, string reason = null)
         {
             _tickController.PauseCategory(category, reason);
         }
 
-        public void ResumeCategory(AdaptiveTickController.SystemCategory category)
+        public void ResumeCategory(SystemCategory category)
         {
             _tickController.ResumeCategory(category);
         }
 
-        public GameplayContextAnalyzer.FullContext GetCurrentContext()
+        public FullContext GetCurrentContext()
         {
             return _contextAnalyzer.CurrentContext;
         }
@@ -248,7 +262,7 @@ namespace RLF.GTA.Safety
             return _contextAnalyzer.IsInSurvivalMode;
         }
 
-        public GameplayContextAnalyzer.PerformanceLevel GetPerformanceLevel()
+        public PerformanceLevel GetPerformanceLevel()
         {
             return _contextAnalyzer.CurrentPerformanceLevel;
         }
@@ -270,13 +284,10 @@ namespace RLF.GTA.Safety
             return ok;
         }
 
-        /// <summary>
-        /// Reset de sessão - chamar quando jogador carrega save
-        /// </summary>
         public void ResetSession()
         {
             _contextAnalyzer.ResetSession();
-            SafetyLogger.Instance?.Log("[SafeExecutionManager] Sessão resetada pelo usuário");
+            SafetyLogger.Instance?.Log("[SafeExecutionManager] Session reset by user");
         }
 
         public Dictionary<string, object> GetFullStatusReport()
@@ -296,11 +307,15 @@ namespace RLF.GTA.Safety
                 ["Monitor"] = _activityMonitor.GetHealthReport()
             };
         }
+
         #endregion
 
         #region Private Methods
+
         private void ExecuteSystemSafely(string systemId, Action callback)
         {
+            if (_shutdown) return;
+
             if (!_activityMonitor.CanScriptExecute(systemId))
                 return;
 
@@ -321,10 +336,11 @@ namespace RLF.GTA.Safety
 
         private void PerformHealthCheck()
         {
+            if (_shutdown) return;
+
             var ctx = _contextAnalyzer.CurrentContext;
             var stats = _tickController.Statistics;
 
-            // Log periódico
             SafetyLogger.Instance?.Log(
                 $"[Health] Min:{ctx.Session.MinutesSinceStart} " +
                 $"FPS:{ctx.Performance.AverageFPS:F0} " +
@@ -333,168 +349,74 @@ namespace RLF.GTA.Safety
                 $"Survival:{ctx.Session.SurvivalModeActive}"
             );
 
-            // Ajustes automáticos
             PerformAutomaticAdjustments(ctx);
         }
 
-        private void PerformAutomaticAdjustments(GameplayContextAnalyzer.FullContext ctx)
+        private void PerformAutomaticAdjustments(FullContext ctx)
         {
-            // Menu -> pausar categorias pesadas
-            if (ctx.Player.ActivityState == GameplayContextAnalyzer.PlayerActivityState.InMenu)
+            if (ctx.Player.ActivityState == PlayerActivityState.InMenu)
             {
-                _tickController.PauseCategory(AdaptiveTickController.SystemCategory.AI, "Menu");
-                _tickController.PauseCategory(AdaptiveTickController.SystemCategory.Crime, "Menu");
-                _tickController.PauseCategory(AdaptiveTickController.SystemCategory.LivingWorld, "Menu");
+                _tickController.PauseCategory(SystemCategory.AI, "Menu");
+                _tickController.PauseCategory(SystemCategory.Crime, "Menu");
+                _tickController.PauseCategory(SystemCategory.LivingWorld, "Menu");
             }
 
-            // Cutscene -> freeze global
-            if (ctx.Player.ActivityState == GameplayContextAnalyzer.PlayerActivityState.InCutscene)
+            if (ctx.Player.ActivityState == PlayerActivityState.InCutscene)
             {
                 _tickController.GlobalPause(true, "Cutscene");
             }
             else if (_tickController.IsGloballyPaused)
             {
                 _tickController.GlobalPause(false);
-                _tickController.ResumeCategory(AdaptiveTickController.SystemCategory.AI);
-                _tickController.ResumeCategory(AdaptiveTickController.SystemCategory.Crime);
-                _tickController.ResumeCategory(AdaptiveTickController.SystemCategory.LivingWorld);
+                _tickController.ResumeCategory(SystemCategory.AI);
+                _tickController.ResumeCategory(SystemCategory.Crime);
+                _tickController.ResumeCategory(SystemCategory.LivingWorld);
             }
 
-            // Performance crítica -> freeze
-            if (ctx.Performance.Level == GameplayContextAnalyzer.PerformanceLevel.Critical)
+            if (ctx.Performance.Level == PerformanceLevel.Critical)
             {
                 _tickController.GlobalFreeze(3, "Critical performance");
             }
 
-            // Survival mode -> pausar tudo não essencial
             if (ctx.Session.SurvivalModeActive)
             {
-                _tickController.PauseCategory(AdaptiveTickController.SystemCategory.LivingWorld, "Survival");
-                _tickController.PauseCategory(AdaptiveTickController.SystemCategory.Debug, "Survival");
+                _tickController.PauseCategory(SystemCategory.LivingWorld, "Survival");
+                _tickController.PauseCategory(SystemCategory.Debug, "Survival");
             }
         }
+
         #endregion
-    }
 
-    #region Safety Logger - OTIMIZADO
-    public sealed class SafetyLogger
-    {
-        private static SafetyLogger _instance;
-        private static readonly object _lock = new object();
-
-        public static SafetyLogger Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    lock (_lock)
-                    {
-                        if (_instance == null)
-                            _instance = new SafetyLogger();
-                    }
-                }
-                return _instance;
-            }
-        }
-
-        private StreamWriter _writer;
-        private readonly List<string> _buffer = new List<string>(32);
-        private int _framesSinceFlush;
-        private bool _initialized;
-
-        private const string LOG_PATH = "scripts/RLF/Logs/Safety.log";
-        private const int BUFFER_MAX = 20;
-        private const int FLUSH_FRAMES = 90;  // ~3 segundos
-
-        public void Initialize()
-        {
-            try
-            {
-                string dir = Path.GetDirectoryName(LOG_PATH);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                    Directory.CreateDirectory(dir);
-
-                // Rotação se muito grande
-                if (File.Exists(LOG_PATH))
-                {
-                    var fi = new FileInfo(LOG_PATH);
-                    if (fi.Length > 5 * 1024 * 1024) // 5MB
-                    {
-                        string backup = LOG_PATH + ".old";
-                        if (File.Exists(backup)) File.Delete(backup);
-                        File.Move(LOG_PATH, backup);
-                    }
-                }
-
-                _writer = new StreamWriter(LOG_PATH, true);
-                _initialized = true;
-            }
-            catch
-            {
-                _initialized = false;
-            }
-        }
-
-        public void Log(string message)
-        {
-            if (!_initialized) return;
-
-            // Formato simples, sem DateTime.Now.ToString elaborado
-            string line = $"[{DateTime.Now:HH:mm:ss}] {message}";
-
-            lock (_lock)
-            {
-                _buffer.Add(line);
-                _framesSinceFlush++;
-
-                if (_buffer.Count >= BUFFER_MAX || _framesSinceFlush >= FLUSH_FRAMES)
-                {
-                    Flush();
-                }
-            }
-        }
-
-        public void LogError(string message)
-        {
-            Log($"[ERROR] {message}");
-        }
-
-        public void LogWarning(string message)
-        {
-            Log($"[WARN] {message}");
-        }
-
-        private void Flush()
-        {
-            if (!_initialized || _writer == null || _buffer.Count == 0)
-                return;
-
-            try
-            {
-                foreach (var line in _buffer)
-                    _writer.WriteLine(line);
-                _writer.Flush();
-                _buffer.Clear();
-                _framesSinceFlush = 0;
-            }
-            catch { }
-        }
+        #region Shutdown
 
         public void Shutdown()
         {
+            // REFINADO: prote��o contra shutdown duplo
+            if (_shutdown) return;
+
             lock (_lock)
             {
-                Flush();
-                try
+                if (_shutdown) return;  // Double-check
+                _shutdown = true;
+
+                if (!_initialized) return;
+
+                var ctx = _contextAnalyzer?.CurrentContext;
+                SafetyLogger.Instance?.Log("=== RLF Safety System Shutting Down ===");
+
+                if (ctx != null)
                 {
-                    _writer?.Close();
-                    _writer?.Dispose();
+                    SafetyLogger.Instance?.Log($"Session: {ctx.Session.MinutesSinceStart} minutes");
                 }
-                catch { }
+
+                SafetyLogger.Instance?.Log($"Frames: {_frameCounter}");
+                SafetyLogger.Instance?.Log($"Crashes prevented: {_crashesPrevented}");
+                SafetyLogger.Instance?.Shutdown();
+
                 _initialized = false;
             }
         }
+
+        #endregion
     }
-    #endregion
 }

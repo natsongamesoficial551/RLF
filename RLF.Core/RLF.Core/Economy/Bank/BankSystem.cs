@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using RLF.Core.Economy.Transactions;
 
 namespace RLF.Core.Economy.Bank
 {
@@ -11,17 +10,17 @@ namespace RLF.Core.Economy.Bank
     {
         private Dictionary<string, BankAccount> _accounts;
         private string _currentCharacterId;
-        
+
         public BankAccount CurrentAccount
         {
             get
             {
                 if (string.IsNullOrEmpty(_currentCharacterId))
                     return null;
-                    
+
                 if (!_accounts.ContainsKey(_currentCharacterId))
                     _accounts[_currentCharacterId] = new BankAccount(_currentCharacterId);
-                    
+
                 return _accounts[_currentCharacterId];
             }
         }

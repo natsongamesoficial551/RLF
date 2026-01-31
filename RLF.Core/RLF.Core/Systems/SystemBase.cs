@@ -1,17 +1,15 @@
-using System;
 using RLF.Core.Events;
 using RLF.Core.Events.EventArgs;
 using RLF.Core.Logging;
 using RLF.Core.Utilities;
-using RLF.Core.Scheduling;
+using System;
 
 namespace RLF.Core.Systems
 {
     /// <summary>
     /// Classe base para todos os sistemas do Real Life Framework.
-    /// Implementa ISchedulable para integração automática com TaskScheduler.
     /// </summary>
-    public abstract class SystemBase : ISchedulable
+    public abstract class SystemBase
     {
         #region Enums
 
@@ -25,7 +23,7 @@ namespace RLF.Core.Systems
 
         #endregion
 
-        #region Propriedades Públicas
+        #region Propriedades PÃºblicas
 
         public string Name { get; }
         public SystemState State { get; private set; }
@@ -34,43 +32,10 @@ namespace RLF.Core.Systems
         public bool IsPaused => State == SystemState.Paused;
 
         /// <summary>
-        /// Intervalo em ticks entre execuções.
+        /// Intervalo em ticks entre execuÃ§Ãµes.
         /// 1 = todo tick | 60 = ~1x por segundo (60fps)
         /// </summary>
         public int TickRate { get; protected set; }
-
-        /// <summary>
-        /// Prioridade de execução no scheduler.
-        /// </summary>
-        public TaskPriority SchedulePriority { get; protected set; }
-
-        #endregion
-
-        #region ISchedulable
-
-        string ISchedulable.ScheduleName => Name;
-        TaskPriority ISchedulable.Priority => SchedulePriority;
-        int ISchedulable.TickInterval => TickRate;
-        bool ISchedulable.IsActive => State == SystemState.Running;
-
-        void ISchedulable.ExecuteScheduled()
-        {
-            // Executa diretamente sem verificar TickRate (scheduler já controla)
-            if (State != SystemState.Running)
-                return;
-
-            bool ok = SafeExecutor.Execute(
-                () => OnTick(),
-                $"{Name}.Tick"
-            );
-
-            if (!ok)
-            {
-                State = SystemState.Failed;
-                Logger.Error($"{Name} entrou em estado FAILED");
-                Events.Raise("system:failed", new RLFEventArgs<string>(Name));
-            }
-        }
 
         #endregion
 
@@ -84,7 +49,6 @@ namespace RLF.Core.Systems
         #region Campos Privados
 
         private int _tickCounter;
-        private bool _useScheduler;
 
         #endregion
 
@@ -94,24 +58,21 @@ namespace RLF.Core.Systems
             string name,
             Logger logger,
             EventManager eventManager,
-            int tickRate = 1,
-            TaskPriority priority = TaskPriority.Normal)
+            int tickRate = 1)
         {
             Name = string.IsNullOrWhiteSpace(name) ? GetType().Name : name;
             Logger = logger ?? throw new ArgumentNullException(nameof(logger));
             Events = eventManager ?? throw new ArgumentNullException(nameof(eventManager));
 
             TickRate = Math.Max(1, tickRate);
-            SchedulePriority = priority;
             _tickCounter = 0;
-            _useScheduler = false;
 
             State = SystemState.Stopped;
         }
 
         #endregion
 
-        #region Ciclo de Vida Público
+        #region Ciclo de Vida PÃºblico
 
         public bool Start()
         {
@@ -124,7 +85,7 @@ namespace RLF.Core.Systems
                     OnStart();
                     State = SystemState.Running;
 
-                    Logger.Info($"{Name} iniciado (TickRate={TickRate}, Priority={SchedulePriority})");
+                    Logger.Info($"{Name} iniciado (TickRate={TickRate})");
                     Events.Raise("system:started", new RLFEventArgs<string>(Name));
                 },
                 $"{Name}.Start"
@@ -181,25 +142,13 @@ namespace RLF.Core.Systems
 
         #endregion
 
-        #region Tick (Fallback quando Scheduler desabilitado)
+        #region Tick
 
         /// <summary>
-        /// Indica que este sistema será gerenciado pelo scheduler.
-        /// </summary>
-        internal void SetUseScheduler(bool useScheduler)
-        {
-            _useScheduler = useScheduler;
-        }
-
-        /// <summary>
-        /// Tick chamado pelo SystemRegistry (fallback se scheduler desabilitado).
+        /// Tick chamado pelo SystemRegistry.
         /// </summary>
         public void Tick()
         {
-            // Se scheduler está gerenciando, não faz nada aqui
-            if (_useScheduler)
-                return;
-
             if (State != SystemState.Running)
                 return;
 
@@ -223,7 +172,7 @@ namespace RLF.Core.Systems
 
         #endregion
 
-        #region Métodos Abstratos
+        #region MÃ©todos Abstratos
 
         protected abstract void OnStart();
         protected abstract void OnStop();

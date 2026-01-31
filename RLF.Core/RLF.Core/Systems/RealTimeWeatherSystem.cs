@@ -1,13 +1,12 @@
-﻿using System;
+﻿using RLF.Core.Events;
+using RLF.Core.Events.EventArgs;
+using RLF.Core.Logging;
+using RLF.Core.Utilities;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text.RegularExpressions;
-using RLF.Core.Events;
-using RLF.Core.Events.EventArgs;
-using RLF.Core.Logging;
-using RLF.Core.Systems;
-using RLF.Core.Utilities;
 
 namespace RLF.Core.Systems
 {

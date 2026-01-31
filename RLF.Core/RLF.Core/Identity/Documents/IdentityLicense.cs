@@ -1,5 +1,5 @@
-﻿using System;
-using RLF.Core.Identity.Enums;
+﻿using RLF.Core.Identity.Enums;
+using System;
 
 namespace RLF.Core.Identity.Documents
 {

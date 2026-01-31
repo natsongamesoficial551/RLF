@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
-using GTA;
 
-namespace RLF.GTA.Safety
+namespace RLF.Core.Safety
 {
     /// <summary>
-    /// Monitor de atividade de scripts para detectar crashes silenciosos.
-    /// OTIMIZADO: Menos DateTime, menos Queue, contadores simples.
+    /// Monitor de atividade de scripts.
+    /// Puro C# - sem depend�ncias do GTA.
     /// </summary>
     public sealed class ScriptActivityMonitor
     {
         #region Singleton
+
         private static ScriptActivityMonitor _instance;
         private static readonly object _lock = new object();
 
@@ -29,65 +29,11 @@ namespace RLF.GTA.Safety
                 return _instance;
             }
         }
+
         #endregion
 
-        #region Enums
-        public enum ScriptHealthStatus
-        {
-            Healthy,
-            Warning,
-            Critical,
-            Disabled
-        }
+        #region Fields
 
-        public enum RiskType
-        {
-            None,
-            LongExecution,
-            SilentException,
-            RepetitiveLoop,
-            ExcessiveErrors
-        }
-        #endregion
-
-        #region Data Classes - SIMPLIFICADO
-        public class ScriptRecord
-        {
-            public string ScriptId;
-            public string ScriptName;
-            public ScriptHealthStatus Status;
-
-            public int ExecutionCount;
-            public int ErrorCount;
-            public int ConsecutiveErrors;
-            public int ConsecutiveLongExecutions;
-
-            public int LastActivityFrame;
-            public int LastErrorFrame;
-
-            public string LastErrorMessage;
-
-            public bool IsDisabled;
-            public int DisabledUntilFrame;
-            public int DisableCount;
-
-            public RiskType CurrentRisk;
-
-            // Para detecção de loop
-            public int SameResultCount;
-            public int LastResultHash;
-        }
-
-        // Contexto de execução leve
-        public class ExecContext
-        {
-            public string ScriptId;
-            public int StartFrame;
-            public bool Valid;
-        }
-        #endregion
-
-        #region Private Fields
         private readonly Dictionary<string, ScriptRecord> _scripts = new Dictionary<string, ScriptRecord>(32);
         private readonly Dictionary<string, ExecContext> _activeExec = new Dictionary<string, ExecContext>(16);
         private readonly List<string> _pendingDisables = new List<string>(8);
@@ -96,26 +42,32 @@ namespace RLF.GTA.Safety
         private int _lastMonitorFrame;
         private int _globalErrorCount;
 
-        // Thresholds em frames
-        private const int LONG_EXEC_FRAMES = 2;              // > 2 frames = longo
+        // Thresholds
+        private const int LONG_EXEC_FRAMES = 2;
         private const int MAX_CONSECUTIVE_LONG = 8;
         private const int MAX_CONSECUTIVE_ERRORS = 5;
-        private const int BASE_COOLDOWN_FRAMES = 150;        // ~5 segundos
-        private const int MAX_COOLDOWN_FRAMES = 1800;        // ~1 minuto
-        private const int MONITOR_INTERVAL = 15;             // A cada 15 frames
+        private const int BASE_COOLDOWN_FRAMES = 150;
+        private const int MAX_COOLDOWN_FRAMES = 1800;
+        private const int MONITOR_INTERVAL = 15;
         private const int LOOP_THRESHOLD = 60;
+
         #endregion
 
         #region Constructor
+
         private ScriptActivityMonitor() { }
+
         #endregion
 
         #region Properties
+
         public int RegisteredCount => _scripts.Count;
         public int GlobalErrorCount => _globalErrorCount;
+
         #endregion
 
         #region Registration
+
         public void RegisterScript(string scriptId, string scriptName = null)
         {
             if (string.IsNullOrEmpty(scriptId)) return;
@@ -141,9 +93,11 @@ namespace RLF.GTA.Safety
                 _activeExec.Remove(scriptId);
             }
         }
+
         #endregion
 
         #region Execution Tracking
+
         public ExecContext BeginExecution(string scriptId, string opName = null)
         {
             if (!_scripts.TryGetValue(scriptId, out var record))
@@ -152,14 +106,13 @@ namespace RLF.GTA.Safety
                 record = _scripts[scriptId];
             }
 
-            // Check disabled
             if (record.IsDisabled)
             {
                 if (_frameCounter >= record.DisabledUntilFrame)
                 {
                     record.IsDisabled = false;
                     record.ConsecutiveErrors = 0;
-                    SafetyLogger.Instance?.Log($"[ScriptActivityMonitor] Recuperando: {scriptId}");
+                    SafetyLogger.Instance?.Log($"[ScriptActivityMonitor] Recovering: {scriptId}");
                 }
                 else
                 {
@@ -192,14 +145,13 @@ namespace RLF.GTA.Safety
             record.LastActivityFrame = _frameCounter;
             record.ConsecutiveErrors = 0;
 
-            // Long execution check
             if (execFrames > LONG_EXEC_FRAMES)
             {
                 record.ConsecutiveLongExecutions++;
 
                 if (record.ConsecutiveLongExecutions >= MAX_CONSECUTIVE_LONG)
                 {
-                    DisableScript(record, "Execuções longas consecutivas");
+                    DisableScript(record, "Consecutive long executions");
                 }
             }
             else
@@ -208,7 +160,7 @@ namespace RLF.GTA.Safety
                     record.ConsecutiveLongExecutions--;
             }
 
-            // Loop detection simples
+            // Loop detection
             int resultHash = execFrames;
             if (resultHash == record.LastResultHash)
             {
@@ -216,7 +168,6 @@ namespace RLF.GTA.Safety
                 if (record.SameResultCount >= LOOP_THRESHOLD)
                 {
                     record.CurrentRisk = RiskType.RepetitiveLoop;
-                    // Não desabilitar, só marcar
                 }
             }
             else
@@ -246,11 +197,11 @@ namespace RLF.GTA.Safety
 
             _globalErrorCount++;
 
-            SafetyLogger.Instance?.LogError($"[ScriptActivityMonitor] Erro em {record.ScriptName}: {ex?.Message}");
+            SafetyLogger.Instance?.LogError($"[ScriptActivityMonitor] Error in {record.ScriptName}: {ex?.Message}");
 
             if (record.ConsecutiveErrors >= MAX_CONSECUTIVE_ERRORS)
             {
-                DisableScript(record, "Erros consecutivos");
+                DisableScript(record, "Consecutive errors");
             }
 
             _activeExec.Remove(scriptId);
@@ -265,9 +216,11 @@ namespace RLF.GTA.Safety
             record.ErrorCount++;
             record.CurrentRisk = RiskType.SilentException;
         }
+
         #endregion
 
-        #region Monitor Tick
+        #region Monitor
+
         public void MonitorTick()
         {
             _frameCounter++;
@@ -290,25 +243,36 @@ namespace RLF.GTA.Safety
             }
 
             // Check stuck executions
+            var stuckList = new List<string>();
             foreach (var kvp in _activeExec)
             {
                 if (!kvp.Value.Valid) continue;
 
                 int stuckFrames = _frameCounter - kvp.Value.StartFrame;
-                if (stuckFrames > 60) // ~2 segundos
+                if (stuckFrames > 60)
                 {
-                    if (_scripts.TryGetValue(kvp.Key, out var record))
-                    {
-                        SafetyLogger.Instance?.LogError($"[ScriptActivityMonitor] Execução travada: {record.ScriptName}");
-                        kvp.Value.Valid = false;
-                        DisableScript(record, "Execução travada");
-                    }
+                    stuckList.Add(kvp.Key);
+                }
+            }
+
+            foreach (var scriptId in stuckList)
+            {
+                if (_activeExec.TryGetValue(scriptId, out var exec))
+                {
+                    exec.Valid = false;
+                }
+                if (_scripts.TryGetValue(scriptId, out var record))
+                {
+                    SafetyLogger.Instance?.LogError($"[ScriptActivityMonitor] Stuck execution: {record.ScriptName}");
+                    DisableScript(record, "Stuck execution");
                 }
             }
         }
+
         #endregion
 
         #region Private Methods
+
         private void DisableScript(ScriptRecord record, string reason)
         {
             if (record.IsDisabled) return;
@@ -317,14 +281,13 @@ namespace RLF.GTA.Safety
             record.DisableCount++;
             record.Status = ScriptHealthStatus.Disabled;
 
-            // Cooldown exponencial
             int cooldown = BASE_COOLDOWN_FRAMES * (1 << record.DisableCount);
             if (cooldown > MAX_COOLDOWN_FRAMES) cooldown = MAX_COOLDOWN_FRAMES;
             record.DisabledUntilFrame = _frameCounter + cooldown;
 
             _pendingDisables.Add(record.ScriptId);
 
-            SafetyLogger.Instance?.LogError($"[ScriptActivityMonitor] DESABILITADO: {record.ScriptName} - {reason} (cooldown: {cooldown} frames)");
+            SafetyLogger.Instance?.LogError($"[ScriptActivityMonitor] DISABLED: {record.ScriptName} - {reason} (cooldown: {cooldown} frames)");
         }
 
         private void UpdateStatus(ScriptRecord record)
@@ -347,9 +310,11 @@ namespace RLF.GTA.Safety
                 record.CurrentRisk = RiskType.None;
             }
         }
+
         #endregion
 
-        #region Query Methods
+        #region Query
+
         public bool CanScriptExecute(string scriptId)
         {
             if (!_scripts.TryGetValue(scriptId, out var record))
@@ -438,6 +403,7 @@ namespace RLF.GTA.Safety
                 record.CurrentRisk = RiskType.None;
             }
         }
+
         #endregion
     }
 }

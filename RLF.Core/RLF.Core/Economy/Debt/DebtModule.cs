@@ -1,6 +1,6 @@
-﻿using System;
+﻿using RLF.Core.Economy.Events;
 using RLF.Core.Economy.Transactions;
-using RLF.Core.Economy.Events;
+using System;
 using WalletModel = RLF.Core.Economy.Wallet.Wallet;
 
 namespace RLF.Core.Economy.Debt

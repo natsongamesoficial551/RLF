@@ -1,7 +1,7 @@
-﻿using System;
+﻿using RLF.Core.Vehicles.Storage;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using RLF.Core.Vehicles.Storage;
 
 namespace RLF.Core.Vehicles
 {

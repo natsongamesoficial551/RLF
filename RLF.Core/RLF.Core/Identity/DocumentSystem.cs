@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using RLF.Core.Events;
+﻿using RLF.Core.Events;
 using RLF.Core.Identity.Documents;
 using RLF.Core.Identity.Enums;
 using RLF.Core.Identity.Events;
 using RLF.Core.Identity.Storage;
 using RLF.Core.Logging;
 using RLF.Core.Systems;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace RLF.Core.Identity
 {

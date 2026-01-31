@@ -1,9 +1,8 @@
-﻿using System;
+﻿using RLF.Core.CharacterCreator.Data;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Xml.Serialization;
-using RLF.Core.CharacterCreator.Data;
 
 namespace RLF.Core.CharacterCreator.Storage
 {

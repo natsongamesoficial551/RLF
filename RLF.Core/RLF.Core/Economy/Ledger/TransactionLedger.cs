@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using RLF.Core.Economy.Transactions;
+using System.Collections.Generic;
 using System.Linq;
-using RLF.Core.Economy.Transactions;
 
 namespace RLF.Core.Economy.Ledger
 {

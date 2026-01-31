@@ -1,6 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using RLF.Core.CharacterCreator.Data;
+﻿using RLF.Core.CharacterCreator.Data;
+using System;
 
 namespace RLF.Core.CharacterCreator.Storage
 {

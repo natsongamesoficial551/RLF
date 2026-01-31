@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using RLF.Core.Economy;
+﻿using RLF.Core.Economy;
 using RLF.Core.Economy.Transactions;
 using RLF.Core.Events;
 using RLF.Core.Jobs.Enums;
@@ -8,6 +6,8 @@ using RLF.Core.Jobs.Events;
 using RLF.Core.Jobs.Payment;
 using RLF.Core.Jobs.Shift;
 using RLF.Core.Logging;
+using System;
+using System.Collections.Generic;
 
 namespace RLF.Core.Jobs.Core
 {

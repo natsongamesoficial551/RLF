@@ -1,8 +1,8 @@
-﻿using System;
-using RLF.Core.Debug;
+﻿using RLF.Core.Debug;
 using RLF.Core.Events;
 using RLF.Core.Events.EventArgs;
 using RLF.Core.Identity.Events;
+using System;
 
 namespace RLF.Core.Identity.Debug
 {

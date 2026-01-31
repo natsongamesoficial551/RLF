@@ -1,27 +1,21 @@
-﻿using RLF.Core.Configuration;
+using RLF.Core.CharacterCreator.Storage;
+using RLF.Core.Configuration;
 using RLF.Core.Debug;
 using RLF.Core.Economy;
 using RLF.Core.Economy.Debt;
 using RLF.Core.Economy.Expenses;
 using RLF.Core.Economy.Wallet;
-using RLF.Core.Entities;
 using RLF.Core.Events;
 using RLF.Core.Events.EventArgs;
 using RLF.Core.Identity;
 using RLF.Core.Identity.Debug;
-using RLF.Core.IO;
 using RLF.Core.Law;
 using RLF.Core.Law.Police;
-using RLF.Core.Logging;        // Logger original
-using RLF.Core.Loggin;         // OptimizedLogger, LogBuffer, etc.
-using RLF.Core.Performance;
-using RLF.Core.Pooling;
-using RLF.Core.Scheduling;
+using RLF.Core.Logging;
+using RLF.Core.Safety;  // 🛡️ NOVO: Safety System
 using RLF.Core.Systems;
 using RLF.Core.Utilities;
 using RLF.Core.Vehicles;
-using RLF.Core.CharacterCreator.Storage;
-using RLF.Core.Watchdog;
 using System;
 using System.IO;
 
@@ -39,7 +33,7 @@ namespace RLF.Core
 
     /// <summary>
     /// Núcleo do Real Life Framework.
-    /// Inicialização segura, eventos desacoplados, scheduler otimizado e shutdown limpo.
+    /// Inicialização segura, eventos desacoplados e shutdown limpo.
     /// </summary>
     public sealed class RLFCore
     {
@@ -75,22 +69,6 @@ namespace RLF.Core
         private IniReader _config;
         private SystemRegistry _systemRegistry;
 
-        // 🚀 Performance & Scheduling
-        private PerformanceConfig _performanceConfig;
-        private TickProfiler _tickProfiler;
-        private TaskScheduler _taskScheduler;
-
-        // 🛡️ Watchdog & Entities
-        private EntityRegistry _entityRegistry;
-        private Watchdog.Watchdog _watchdog;
-        private WatchdogConfig _watchdogConfig;
-
-        // 📝 Logging Otimizado
-        private OptimizedLogger _optimizedLogger;
-
-        // 📁 I/O Assíncrono
-        private AsyncFileQueue _fileQueue;
-
         // 🔎 Identity Debug
         private IdentityDebugListener _identityDebugListener;
 
@@ -99,6 +77,9 @@ namespace RLF.Core
 
         // 🧑 Character Creator
         private CharacterStore _characterStore;
+
+        // 🛡️ Safety System
+        private bool _safetySystemAvailable;
 
         private CoreState _state;
         private readonly object _stateLock = new object();
@@ -120,21 +101,6 @@ namespace RLF.Core
         public IniReader Config => _config;
         public SystemRegistry Systems => _systemRegistry;
 
-        // 🚀 Performance
-        public PerformanceConfig PerformanceConfig => _performanceConfig;
-        public TickProfiler Profiler => _tickProfiler;
-        public TaskScheduler Scheduler => _taskScheduler;
-
-        // 🛡️ Entities & Watchdog
-        public EntityRegistry Entities => _entityRegistry;
-        public Watchdog.Watchdog Watchdog => _watchdog;
-
-        // 📝 Logging Otimizado
-        public OptimizedLogger OptimizedLogger => _optimizedLogger;
-
-        // 📁 I/O Assíncrono
-        public AsyncFileQueue FileQueue => _fileQueue;
-
         // 💰 Economia
         public EconomySystem Economy => _economySystem;
 
@@ -143,6 +109,12 @@ namespace RLF.Core
 
         // 📁 Caminho de dados
         public string DataPath => _dataPath;
+
+        // 🛡️ Safety Manager (inicialização real é feita pelo RLF.GTA)
+        public SafeExecutionManager SafetyManager => SafeExecutionManager.Instance;
+
+        // 🛡️ Indica se o Safety System está disponível
+        public bool IsSafetySystemAvailable => _safetySystemAvailable;
 
         public CoreState State
         {
@@ -226,33 +198,18 @@ namespace RLF.Core
                 if (!InitializeEventManager())
                     return FailInit("EventManager");
 
-                // 5️⃣ Performance (Scheduler + Profiler)
-                if (!InitializePerformance())
-                    return FailInit("Performance");
-
                 SafeExecutor.Logger = _logger;
 
-                // 6️⃣ EntityRegistry (DEPOIS do scheduler)
-                if (!InitializeEntityRegistry())
-                    return FailInit("EntityRegistry");
-
-                // 7️⃣ Sistemas
+                // 5️⃣ Sistemas
                 if (!InitializeSystems())
                     return FailInit("Systems");
 
-                // 8️⃣ Watchdog (DEPOIS dos sistemas)
-                if (!InitializeWatchdog())
-                    return FailInit("Watchdog");
-
-                // 9️⃣ Logging otimizado (DEPOIS do config)
-                InitializeOptimizedLogger();
-
-                // 🔟 I/O assíncrono (DEPOIS do config)
-                InitializeFileQueue();
-
-                // 1️⃣1️⃣ Character Creator
+                // 6️⃣ Character Creator
                 if (!InitializeCharacterCreator())
                     return FailInit("CharacterCreator");
+
+                // 7️⃣ Safety System (marca como disponível - inicialização real é no RLF.GTA)
+                InitializeSafetySystem();
 
                 _initializationTime = DateTime.Now;
 
@@ -260,8 +217,7 @@ namespace RLF.Core
                 RaiseEvent("core:initialized", new RLFEventArgs());
 
                 _logger.Info($"RLF Core v{_version} inicializado com sucesso");
-                _logger.Info($"[Performance] Scheduler={_performanceConfig.SchedulerEnabled}, Budget={_performanceConfig.TickBudgetMs}ms");
-                _logger.Info($"[Entities] Registry ativo, Cleanup={_config.GetFloat("Entities", "CleanupIntervalSeconds", 10f)}s");
+                _logger.Info($"[Safety] Sistema de segurança disponível: {_safetySystemAvailable}");
 
                 RLFDebug.Info(DebugChannel.Core, $"RLF Core v{_version} inicializado (State=Running)");
                 return true;
@@ -314,40 +270,6 @@ namespace RLF.Core
             }
         }
 
-        private bool InitializeOptimizedLogger()
-        {
-            try
-            {
-                bool useOptimized = _config.GetBool("Logging", "UseOptimizedLogger", true);
-
-                if (!useOptimized)
-                    return true;
-
-                int bufferCapacity = _config.GetInt("Logging", "BufferCapacity", 500);
-                int flushIntervalMs = _config.GetInt("Logging", "FlushIntervalMs", 5000);
-                int flushThreshold = _config.GetInt("Logging", "FlushThreshold", 100);
-                int rateLimitPerSecond = _config.GetInt("Logging", "RateLimitPerSecond", 20);
-
-                _optimizedLogger = new OptimizedLogger(
-                    _logDirectory,
-                    "RLF_Optimized",
-                    _debugMode ? LogLevel.Debug : LogLevel.Info,
-                    bufferCapacity,
-                    flushIntervalMs,
-                    flushThreshold,
-                    rateLimitPerSecond
-                );
-
-                _logger?.Info("[OptimizedLogger] Inicializado");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger?.Error("Falha ao inicializar OptimizedLogger", ex);
-                return true; // Não crítico
-            }
-        }
-
         #endregion
 
         #region Configuration
@@ -387,46 +309,15 @@ namespace RLF.Core
             _config.SetBool("Debug", "Enabled", true);
             _config.SetString("Debug", "MinLevel", "Info");
 
-            // Logging Otimizado
-            _config.SetBool("Logging", "UseOptimizedLogger", true);
-            _config.SetInt("Logging", "BufferCapacity", 500);
-            _config.SetInt("Logging", "FlushIntervalMs", 5000);
-            _config.SetInt("Logging", "FlushThreshold", 100);
-            _config.SetInt("Logging", "RateLimitPerSecond", 20);
-
-            // I/O
-            _config.SetInt("IO", "MaxQueueSize", 100);
-
             // Character Creator
             _config.SetInt("CharacterCreator", "MaxSlots", 5);
             _config.SetBool("CharacterCreator", "AutoSave", true);
             _config.SetBool("CharacterCreator", "AllowMultipleCharacters", true);
 
-            // Entities
-            _config.SetFloat("Entities", "CleanupIntervalSeconds", 10f);
-            _config.SetInt("Entities", "TickInterval", 60);
-
-            // 🚀 Performance
-            _config.SetBool("Performance", "ProfilerEnabled", true);
-            _config.SetInt("Performance", "ProfilerReportIntervalTicks", 3600);
-            _config.SetFloat("Performance", "TickWarningThresholdMs", 8.0f);
-            _config.SetFloat("Performance", "TickCriticalThresholdMs", 16.0f);
-            _config.SetBool("Performance", "SchedulerEnabled", true);
-            _config.SetFloat("Performance", "TickBudgetMs", 12.0f);
-            _config.SetInt("Performance", "DefaultTaskInterval", 1);
-            _config.SetBool("Performance", "CacheEnabled", true);
-            _config.SetInt("Performance", "PlayerSnapshotTTLFrames", 1);
-            _config.SetInt("Performance", "WorldCacheDefaultTTLMs", 500);
-
-            // Watchdog
-            _config.SetBool("Watchdog", "Enabled", true);
-            _config.SetFloat("Watchdog", "CheckIntervalSeconds", 5f);
-            _config.SetFloat("Watchdog", "WarningThresholdMs", 8f);
-            _config.SetFloat("Watchdog", "CriticalThresholdMs", 16f);
-            _config.SetFloat("Watchdog", "ThrottleMultiplier", 2f);
-            _config.SetInt("Watchdog", "MaxThrottleLevel", 4);
-            _config.SetFloat("Watchdog", "RecoveryThresholdMs", 4f);
-            _config.SetInt("Watchdog", "TickInterval", 30);
+            // 🛡️ Safety System
+            _config.SetBool("Safety", "Enabled", true);
+            _config.SetInt("Safety", "SurvivalModeMinutes", 30);
+            _config.SetInt("Safety", "HealthCheckIntervalFrames", 150);
         }
 
         private void ApplyConfiguration()
@@ -459,117 +350,6 @@ namespace RLF.Core
 
         #endregion
 
-        #region Performance
-
-        private bool InitializePerformance()
-        {
-            try
-            {
-                _performanceConfig = PerformanceConfig.LoadFromIni(_config);
-
-                // Garante que as configs estão salvas
-                _performanceConfig.SaveDefaults(_config);
-                _config.Save();
-
-                // Cria Profiler
-                _tickProfiler = new TickProfiler(
-                    _logger,
-                    _performanceConfig.ProfilerReportIntervalTicks,
-                    _performanceConfig.TickWarningThresholdMs,
-                    _performanceConfig.TickCriticalThresholdMs
-                );
-                _tickProfiler.SetEnabled(_performanceConfig.ProfilerEnabled);
-
-                // Cria Scheduler
-                _taskScheduler = new TaskScheduler(_logger, _performanceConfig.TickBudgetMs);
-                _taskScheduler.SetEnabled(_performanceConfig.SchedulerEnabled);
-
-                _logger?.Info($"[Performance] Profiler={_performanceConfig.ProfilerEnabled}, Scheduler={_performanceConfig.SchedulerEnabled}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger?.Error("Falha ao inicializar Performance", ex);
-                return false;
-            }
-        }
-
-        private bool InitializeEntityRegistry()
-        {
-            try
-            {
-                float cleanupInterval = _config.GetFloat("Entities", "CleanupIntervalSeconds", 10f);
-                int tickInterval = _config.GetInt("Entities", "TickInterval", 60);
-
-                _entityRegistry = new EntityRegistry(_logger, cleanupInterval, tickInterval);
-
-                // Registra no scheduler (que agora já existe)
-                if (_taskScheduler != null)
-                {
-                    _taskScheduler.Register(_entityRegistry);
-                }
-
-                _logger?.Info("[EntityRegistry] Inicializado");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger?.Error("Falha ao inicializar EntityRegistry", ex);
-                return false;
-            }
-        }
-
-        private bool InitializeWatchdog()
-        {
-            try
-            {
-                _watchdogConfig = WatchdogConfig.LoadFromIni(_config);
-                _watchdogConfig.SaveDefaults(_config);
-
-                _watchdog = new Watchdog.Watchdog(
-                    _logger,
-                    _eventManager,
-                    _watchdogConfig,
-                    _tickProfiler,
-                    _taskScheduler,
-                    _systemRegistry
-                );
-
-                // Registra no scheduler
-                if (_taskScheduler != null)
-                {
-                    _taskScheduler.Register(_watchdog);
-                }
-
-                _logger?.Info($"[Watchdog] Inicializado (Enabled={_watchdogConfig.Enabled})");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger?.Error("Falha ao inicializar Watchdog", ex);
-                return false;
-            }
-        }
-
-        private bool InitializeFileQueue()
-        {
-            try
-            {
-                int maxQueueSize = _config.GetInt("IO", "MaxQueueSize", 100);
-                _fileQueue = new AsyncFileQueue(maxQueueSize);
-
-                _logger?.Info("[AsyncFileQueue] Inicializado");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger?.Error("Falha ao inicializar AsyncFileQueue", ex);
-                return true; // Não crítico
-            }
-        }
-
-        #endregion
-
         #region EventManager
 
         private bool InitializeEventManager()
@@ -596,12 +376,6 @@ namespace RLF.Core
             try
             {
                 _systemRegistry = new SystemRegistry(_logger);
-
-                // 🚀 Conecta o scheduler ao registry
-                if (_taskScheduler != null && _performanceConfig.SchedulerEnabled)
-                {
-                    _systemRegistry.SetScheduler(_taskScheduler);
-                }
 
                 _systemRegistry.Register(new CoreLifecycleSystem(_logger, _eventManager));
                 _systemRegistry.Register(new TimeSystem(_logger, _eventManager));
@@ -708,31 +482,178 @@ namespace RLF.Core
 
         #endregion
 
+        #region Safety System
+
+        /// <summary>
+        /// Marca o Safety System como disponível.
+        /// A inicialização REAL é feita pelo RLF.GTA (SafetyBridgeScript).
+        /// O Core apenas expõe disponibilidade e acesso ao manager.
+        /// </summary>
+        private void InitializeSafetySystem()
+        {
+            try
+            {
+                bool enabled = _config.GetBool("Safety", "Enabled", true);
+
+                if (!enabled)
+                {
+                    _safetySystemAvailable = false;
+                    _logger?.Info("[Safety] Sistema de segurança desabilitado via config");
+                    return;
+                }
+
+                // Apenas marca como disponível
+                // A inicialização real acontece no RLF.GTA via SafetyBridgeScript
+                _safetySystemAvailable = true;
+                _logger?.Info("[Safety] Sistema de segurança disponível para inicialização via RLF.GTA");
+                RLFDebug.Info(DebugChannel.Core, "[Safety] Disponível para inicialização");
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error("[Safety] Erro ao preparar sistema de segurança", ex);
+                _safetySystemAvailable = false;
+            }
+        }
+
+        /// <summary>
+        /// Verifica se o Safety System está em modo de proteção.
+        /// Útil para outros sistemas ajustarem comportamento.
+        /// </summary>
+        public bool IsSafetyProtectionActive()
+        {
+            if (!_safetySystemAvailable)
+                return false;
+
+            try
+            {
+                return SafetyManager?.IsInProtectionMode() ?? false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Verifica se o Safety System está em modo survival.
+        /// Útil para outros sistemas reduzirem carga drasticamente.
+        /// </summary>
+        public bool IsSafetySurvivalActive()
+        {
+            if (!_safetySystemAvailable)
+                return false;
+
+            try
+            {
+                return SafetyManager?.IsInSurvivalMode() ?? false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Obtém o nível de performance atual do Safety System.
+        /// </summary>
+        public PerformanceLevel GetSafetyPerformanceLevel()
+        {
+            if (!_safetySystemAvailable)
+                return PerformanceLevel.Normal;
+
+            try
+            {
+                return SafetyManager?.GetPerformanceLevel() ?? PerformanceLevel.Normal;
+            }
+            catch
+            {
+                return PerformanceLevel.Normal;
+            }
+        }
+
+        /// <summary>
+        /// Registra um sistema no Safety Manager para controle de tick adaptativo.
+        /// Wrapper conveniente para não precisar acessar SafetyManager diretamente.
+        /// </summary>
+        public void RegisterSystemForSafety(
+            string systemId,
+            string displayName,
+            SystemCategory category,
+            TickPriority priority,
+            Action tickCallback,
+            int normalTickRateMs = 0,
+            int reducedTickRateMs = 100,
+            int minimalTickRateMs = 500,
+            Func<bool> canRunCallback = null)
+        {
+            if (!_safetySystemAvailable)
+            {
+                _logger?.Warning($"[Safety] Tentativa de registrar sistema '{systemId}' mas Safety não está disponível");
+                return;
+            }
+
+            try
+            {
+                SafetyManager?.RegisterSystem(
+                    systemId,
+                    displayName,
+                    category,
+                    priority,
+                    tickCallback,
+                    normalTickRateMs,
+                    reducedTickRateMs,
+                    minimalTickRateMs,
+                    canRunCallback
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error($"[Safety] Erro ao registrar sistema '{systemId}'", ex);
+            }
+        }
+
+        /// <summary>
+        /// Registra um sistema batch no Safety Manager.
+        /// </summary>
+        public void RegisterBatchSystemForSafety(
+            string systemId,
+            string displayName,
+            SystemCategory category,
+            Action tickCallback,
+            int batchIntervalMs = 1000)
+        {
+            if (!_safetySystemAvailable)
+                return;
+
+            try
+            {
+                SafetyManager?.RegisterBatchSystem(
+                    systemId,
+                    displayName,
+                    category,
+                    tickCallback,
+                    batchIntervalMs
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger?.Error($"[Safety] Erro ao registrar batch system '{systemId}'", ex);
+            }
+        }
+
+        #endregion
+
         #region Tick Bridge
 
         /// <summary>
         /// Chamado pelo RLF.GTA a cada frame.
-        /// Usa Scheduler quando habilitado, senão fallback para TickAll.
         /// </summary>
         public void Tick()
         {
             if (_state != CoreState.Running)
                 return;
 
-            // 📊 Inicia medição
-            _tickProfiler?.BeginTick();
-
-            // 🚀 Usa scheduler se habilitado
-            if (_taskScheduler != null && _taskScheduler.IsEnabled)
-            {
-                _taskScheduler.Tick(_tickProfiler);
-            }
-
-            // Fallback: sistemas não gerenciados pelo scheduler
             _systemRegistry?.TickAll();
-
-            // 📊 Finaliza medição
-            _tickProfiler?.EndTick();
         }
 
         #endregion
@@ -747,52 +668,6 @@ namespace RLF.Core
 
         public bool Unsubscribe(string name, EventHandler<RLFEventArgs> handler)
             => _eventManager?.Unsubscribe(name, handler) ?? false;
-
-        #endregion
-
-        #region Scheduler API
-
-        /// <summary>
-        /// Registra uma tarefa customizada no scheduler.
-        /// </summary>
-        public bool RegisterTask(string name, Action action, TaskPriority priority = TaskPriority.Normal, int interval = 1)
-        {
-            return _taskScheduler?.Register(name, action, priority, interval) ?? false;
-        }
-
-        /// <summary>
-        /// Remove uma tarefa do scheduler.
-        /// </summary>
-        public bool UnregisterTask(string name)
-        {
-            return _taskScheduler?.Unregister(name) ?? false;
-        }
-
-        /// <summary>
-        /// Obtém relatório de performance.
-        /// </summary>
-        public string GetPerformanceReport()
-        {
-            return _tickProfiler?.GenerateReport() ?? "Profiler não disponível";
-        }
-
-        #endregion
-
-        #region Pooling Stats
-
-        /// <summary>
-        /// Obtém estatísticas dos pools de memória.
-        /// </summary>
-        public string GetPoolingStats()
-        {
-            return StringBuilderPool.Build(sb =>
-            {
-                sb.AppendLine("=== Pooling Stats ===");
-                sb.AppendLine(StringBuilderPool.GetStats());
-                sb.AppendLine(ListPool<int>.GetStats());
-                sb.AppendLine("====================");
-            });
-        }
 
         #endregion
 
@@ -822,17 +697,8 @@ namespace RLF.Core
 
             _logger?.Info("Iniciando shutdown do Core...");
 
-            // 📊 Log performance final
-            if (_tickProfiler != null)
-            {
-                _logger?.Info(_tickProfiler.GenerateReport());
-            }
-
             // 🔎 Para listeners
             _identityDebugListener?.StopListening();
-
-            // 🚀 Para scheduler e limpa tarefas
-            _taskScheduler?.Clear();
 
             // 🛡️ Para sistemas
             _systemRegistry?.StopAll();
@@ -841,15 +707,13 @@ namespace RLF.Core
             // 📣 Limpa eventos
             _eventManager?.ClearAll();
 
-            // 📁 Aguarda I/O pendente e fecha
-            _fileQueue?.WaitForCompletion(2000);
-            _fileQueue?.Dispose();
-
-            // 📝 Flush e fecha logs
-            _optimizedLogger?.Dispose();
-
             // 🧑 Limpa character store
             _characterStore = null;
+
+            // 🛡️ Safety System: NÃO fazemos shutdown aqui!
+            // O shutdown do Safety é responsabilidade do RLF.GTA (SafetyBridgeScript)
+            // Isso evita shutdown duplo e garante ordem correta de cleanup
+            _safetySystemAvailable = false;
 
             SetState(CoreState.Stopped);
             _logger?.Info("Core desligado com sucesso");

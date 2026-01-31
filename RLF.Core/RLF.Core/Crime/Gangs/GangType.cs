@@ -1,5 +1,3 @@
-using System;
-
 namespace RLF.Core.Gangs
 {
     /// <summary>
@@ -12,19 +10,19 @@ namespace RLF.Core.Gangs
         Ballas,             // Ballas (Roxo) - Rival das Families
         Vagos,              // Los Santos Vagos (Amarelo) - Gangue mexicana
         Marabunta,          // Marabunta Grande (Azul) - Salvadorenhos
-        
+
         // ===== GANGUES ORGANIZADAS =====
         ArmenianMob,        // Máfia Armênia
         TriadTong,          // Tríade Chinesa
         KoreanMob,          // Máfia Coreana
-        
+
         // ===== GRUPOS MOTORIZADOS =====
         LostMC,             // The Lost MC (Motociclistas)
-        
+
         // ===== GRUPOS DIVERSOS =====
         Rednecks,           // Rednecks de Blaine County
         Hippies,            // Hippies (Pacíficos, não criminosos)
-        
+
         // ===== CRIMINOSOS INDEPENDENTES =====
         Independent         // Jogador sem gangue
     }

@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
-using GTA;
 
-namespace RLF.GTA.Safety
+namespace RLF.Core.Safety
 {
     /// <summary>
     /// Controlador central de ticks adaptativos.
-    /// OTIMIZADO: Menos alocações, contadores de frame, sem DateTime excessivo.
+    /// REFINADO: Usa SystemCategory diretamente no GetFrequencyMultiplier.
     /// </summary>
     public sealed class AdaptiveTickController
     {
         #region Singleton
+
         private static AdaptiveTickController _instance;
         private static readonly object _lock = new object();
 
@@ -29,77 +29,15 @@ namespace RLF.GTA.Safety
                 return _instance;
             }
         }
+
         #endregion
 
-        #region Enums
-        public enum TickPriority
-        {
-            Critical = 0,
-            High = 1,
-            Normal = 2,
-            Low = 3,
-            Background = 4,
-            Batch = 5
-        }
+        #region Fields
 
-        public enum SystemCategory
-        {
-            Core,
-            Combat,
-            AI,
-            Traffic,
-            Crime,
-            Economy,
-            Jobs,
-            UI,
-            Weather,
-            LivingWorld,
-            Debug,
-            Custom
-        }
-        #endregion
-
-        #region Data Classes - OTIMIZADO: struct-like
-        public class SystemTickConfig
-        {
-            public string SystemId;
-            public string DisplayName;
-            public SystemCategory Category;
-            public TickPriority Priority;
-
-            // Tick rates em FRAMES (não ms)
-            public int NormalTickFrames;
-            public int ReducedTickFrames;
-            public int MinimalTickFrames;
-
-            public int CurrentTickFrames;
-            public int LastTickFrame;
-            public int TickCount;
-            public int SkippedTicks;
-
-            public bool IsEnabled;
-            public bool IsPaused;
-            public bool IsFrozen;
-            public int FreezeUntilFrame;
-
-            public Action TickCallback;
-            public Func<bool> CanRunCallback;
-        }
-
-        public class TickStatistics
-        {
-            public int TotalSystems;
-            public int ActiveSystems;
-            public int PausedSystems;
-            public int SystemsRanThisTick;
-        }
-        #endregion
-
-        #region Private Fields
         private readonly Dictionary<string, SystemTickConfig> _systems = new Dictionary<string, SystemTickConfig>(32);
-        private readonly List<string> _systemIds = new List<string>(32);  // Para iteração rápida
+        private readonly List<string> _systemIds = new List<string>(32);
         private readonly List<string> _pendingRemovals = new List<string>(8);
-        private readonly List<string> _systemsToRun = new List<string>(16);  // Reutilizado
+        private readonly List<string> _systemsToRun = new List<string>(16);
 
         private TickStatistics _stats = new TickStatistics();
         private GameplayContextAnalyzer _contextAnalyzer;
@@ -113,26 +51,30 @@ namespace RLF.GTA.Safety
 
         private const int MAX_SYSTEMS_PER_TICK = 30;
         private const int STATS_INTERVAL_FRAMES = 30;
-
-        // Conversão MS para frames (assumindo ~30fps)
         private const float MS_TO_FRAMES = 0.03f;
+
         #endregion
 
         #region Constructor
+
         private AdaptiveTickController()
         {
             _contextAnalyzer = GameplayContextAnalyzer.Instance;
         }
+
         #endregion
 
-        #region Public Properties
+        #region Properties
+
         public TickStatistics Statistics => _stats;
         public bool IsGloballyPaused => _globalPause;
         public bool IsGloballyFrozen => _globalFreeze && _frameCounter < _globalFreezeUntilFrame;
         public int RegisteredSystemCount => _systems.Count;
+
         #endregion
 
-        #region System Registration
+        #region Registration
+
         public void RegisterSystem(
             string systemId,
             string displayName,
@@ -156,12 +98,10 @@ namespace RLF.GTA.Safety
                     return;
                 }
 
-                // Converter MS para frames
                 int normalFrames = (int)(normalTickRateMs * MS_TO_FRAMES);
                 int reducedFrames = (int)(reducedTickRateMs * MS_TO_FRAMES);
                 int minimalFrames = (int)(minimalTickRateMs * MS_TO_FRAMES);
 
-                // Mínimos
                 if (reducedFrames < 3) reducedFrames = 3;
                 if (minimalFrames < 15) minimalFrames = 15;
 
@@ -189,7 +129,7 @@ namespace RLF.GTA.Safety
                 _systems[systemId] = config;
                 _systemIds.Add(systemId);
 
-                SafetyLogger.Instance?.Log($"[AdaptiveTickController] Registrado: {displayName} ({category}/{priority})");
+                SafetyLogger.Instance?.Log($"[AdaptiveTickController] Registered: {displayName} ({category}/{priority})");
             }
         }
 
@@ -208,15 +148,17 @@ namespace RLF.GTA.Safety
         {
             return _systems.ContainsKey(systemId);
         }
+
         #endregion
 
-        #region System Control
+        #region Control
+
         public void PauseSystem(string systemId, string reason = null)
         {
             if (_systems.TryGetValue(systemId, out var config))
             {
                 config.IsPaused = true;
-                SafetyLogger.Instance?.Log($"[AdaptiveTickController] Pausado: {systemId}" +
+                SafetyLogger.Instance?.Log($"[AdaptiveTickController] Paused: {systemId}" +
                     (reason != null ? $" ({reason})" : ""));
             }
         }
@@ -226,7 +168,7 @@ namespace RLF.GTA.Safety
             if (_systems.TryGetValue(systemId, out var config))
             {
                 config.IsPaused = false;
-                SafetyLogger.Instance?.Log($"[AdaptiveTickController] Retomado: {systemId}");
+                SafetyLogger.Instance?.Log($"[AdaptiveTickController] Resumed: {systemId}");
             }
         }
 
@@ -266,21 +208,22 @@ namespace RLF.GTA.Safety
         {
             _globalFreeze = true;
             _globalFreezeUntilFrame = _frameCounter + durationFrames;
-            SafetyLogger.Instance?.Log($"[AdaptiveTickController] Freeze global: {durationFrames} frames");
+            SafetyLogger.Instance?.Log($"[AdaptiveTickController] Global freeze: {durationFrames} frames");
         }
+
         #endregion
 
-        #region Main Tick Processing - OTIMIZADO
+        #region Main Tick
+
         public void ProcessTick()
         {
             _frameCounter++;
 
-            // Freeze global
             if (_globalFreeze && _frameCounter < _globalFreezeUntilFrame)
                 return;
             _globalFreeze = false;
 
-            // Remoções pendentes
+            // Pending removals
             if (_pendingRemovals.Count > 0)
             {
                 lock (_lock)
@@ -294,18 +237,18 @@ namespace RLF.GTA.Safety
                 }
             }
 
-            // Atualizar tick rates (não todo frame em survival)
+            // Update tick rates
             bool isSurvival = _contextAnalyzer.IsInSurvivalMode;
             if (!isSurvival || _frameCounter % 30 == 0)
             {
                 UpdateTickRates(isSurvival);
             }
 
-            // Determinar quais rodam
+            // Determine which systems run
             _systemsToRun.Clear();
             DetermineSystemsToRun();
 
-            // Executar
+            // Execute
             int ran = 0;
             foreach (var systemId in _systemsToRun)
             {
@@ -318,15 +261,15 @@ namespace RLF.GTA.Safety
                     config.TickCount++;
                     ran++;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Erro tratado pelo SafeExecutionManager
+                    SafetyLogger.Instance?.LogError($"[AdaptiveTickController] Error in {systemId}: {ex.Message}");
                 }
 
                 config.LastTickFrame = _frameCounter;
             }
 
-            // Stats espaçadas
+            // Stats
             if (_frameCounter - _lastStatsFrame >= STATS_INTERVAL_FRAMES)
             {
                 _lastStatsFrame = _frameCounter;
@@ -344,16 +287,15 @@ namespace RLF.GTA.Safety
                     continue;
                 }
 
-                // Survival = mínimo para todos
                 if (survival)
                 {
                     config.CurrentTickFrames = config.MinimalTickFrames * 2;
                     continue;
                 }
 
-                float mult = _contextAnalyzer.GetFrequencyMultiplier(config.Category.ToString());
+                // REFINADO: Usa SystemCategory diretamente
+                float mult = _contextAnalyzer.GetFrequencyMultiplier(config.Category);
 
-                // Ajuste por prioridade
                 switch (config.Priority)
                 {
                     case TickPriority.High: mult = mult < 0.5f ? 0.5f : mult; break;
@@ -362,7 +304,6 @@ namespace RLF.GTA.Safety
                     case TickPriority.Batch: mult *= 0.3f; break;
                 }
 
-                // Calcular frame target
                 int target;
                 if (mult <= 0.2f)
                     target = config.MinimalTickFrames;
@@ -371,7 +312,6 @@ namespace RLF.GTA.Safety
                 else
                     target = config.NormalTickFrames;
 
-                // Suavizar transição
                 int diff = target - config.CurrentTickFrames;
                 if (diff > 2 || diff < -2)
                     config.CurrentTickFrames += diff / 3;
@@ -384,7 +324,6 @@ namespace RLF.GTA.Safety
         {
             int count = 0;
 
-            // Iterar por prioridade (Critical primeiro)
             for (int priority = 0; priority <= 5 && count < MAX_SYSTEMS_PER_TICK; priority++)
             {
                 foreach (var systemId in _systemIds)
@@ -401,30 +340,25 @@ namespace RLF.GTA.Safety
                     if (!config.IsEnabled || config.IsPaused)
                         continue;
 
-                    // Freeze check
                     if (config.IsFrozen && _frameCounter < config.FreezeUntilFrame)
                         continue;
                     config.IsFrozen = false;
 
-                    // Pausa global (exceto critical)
                     if (_globalPause && config.Priority != TickPriority.Critical)
                         continue;
 
-                    // CanRun callback
                     if (config.CanRunCallback != null && !config.CanRunCallback())
                     {
                         config.SkippedTicks++;
                         continue;
                     }
 
-                    // Context check
                     if (!_contextAnalyzer.ShouldSystemRun(config.SystemId))
                     {
                         config.SkippedTicks++;
                         continue;
                     }
 
-                    // Frame rate check
                     int framesSince = _frameCounter - config.LastTickFrame;
                     if (framesSince < config.CurrentTickFrames)
                         continue;
@@ -449,9 +383,11 @@ namespace RLF.GTA.Safety
             _stats.ActiveSystems = active;
             _stats.PausedSystems = paused;
         }
+
         #endregion
 
-        #region Query Methods
+        #region Query
+
         public SystemTickConfig GetSystemConfig(string systemId)
         {
             _systems.TryGetValue(systemId, out var config);
@@ -493,9 +429,11 @@ namespace RLF.GTA.Safety
                 ["Frame"] = _frameCounter
             };
         }
+
         #endregion
 
         #region Batch Helper
+
         public void RegisterBatchSystem(
             string systemId,
             string displayName,
@@ -509,6 +447,7 @@ namespace RLF.GTA.Safety
                 batchIntervalMs, batchIntervalMs * 2, batchIntervalMs * 4
             );
         }
+
         #endregion
     }
 }

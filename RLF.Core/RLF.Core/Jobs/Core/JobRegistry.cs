@@ -1,7 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using RLF.Core.Jobs.Enums;
+﻿using RLF.Core.Jobs.Enums;
 using RLF.Core.Logging;
+using System;
+using System.Collections.Generic;
 
 namespace RLF.Core.Jobs.Core
 {

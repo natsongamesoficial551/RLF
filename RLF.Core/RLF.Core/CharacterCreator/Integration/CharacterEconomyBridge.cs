@@ -1,10 +1,10 @@
-using System;
-using System.Collections.Generic;
 using RLF.Core.Economy;
 using RLF.Core.Economy.Bank;
-using RLF.Core.Economy.Wallet;
-using RLF.Core.Economy.Expenses;
 using RLF.Core.Economy.Debt;
+using RLF.Core.Economy.Expenses;
+using RLF.Core.Economy.Wallet;
+using System;
+using System.Collections.Generic;
 
 namespace RLF.GTA.CharacterCreator.Integration
 {

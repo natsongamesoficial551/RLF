@@ -1,6 +1,6 @@
-﻿using System;
+﻿using RLF.Core.Configuration;
+using System;
 using System.Collections.Generic;
-using RLF.Core.Configuration;
 
 namespace RLF.Core.Vehicles.Storage
 {

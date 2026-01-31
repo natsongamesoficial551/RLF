@@ -1,5 +1,5 @@
-﻿using System;
-using RLF.Core.CharacterCreator.Enums;
+﻿using RLF.Core.CharacterCreator.Enums;
+using System;
 
 namespace RLF.Core.CharacterCreator.Data
 {

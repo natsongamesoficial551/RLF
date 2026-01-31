@@ -128,10 +128,6 @@
     <Compile Include="Economy\Wallet\Events\WalletEvents.cs" />
     <Compile Include="Economy\Wallet\Wallet.cs" />
     <Compile Include="Economy\Wallet\WalletSettings.cs" />
-    <Compile Include="Entities\EntityLifetimePolicy.cs" />
-    <Compile Include="Entities\EntityRegistry.cs" />
-    <Compile Include="Entities\EntityType.cs" />
-    <Compile Include="Entities\TrackedEntity.cs" />
     <Compile Include="Identity\Debug\IdentityDebugListener.cs" />
     <Compile Include="Identity\DocumentSystem.cs" />
     <Compile Include="Identity\Documents\IdentityDocument.cs" />
@@ -147,10 +143,6 @@
     <Compile Include="Identity\IdentitySettingsLoader.cs" />
     <Compile Include="Identity\Storage\IIdentityStore.cs" />
     <Compile Include="Identity\Storage\IniIdentityStore.cs" />
-    <Compile Include="IO\AsyncFileQueue.cs" />
-    <Compile Include="IO\FileOperationResult.cs" />
-    <Compile Include="IO\SafeFileReader.cs" />
-    <Compile Include="IO\SafeFileWriter.cs" />
     <Compile Include="Jobs\Core\JobBase.cs" />
     <Compile Include="Jobs\Core\JobRegistry.cs" />
     <Compile Include="Jobs\Core\JobSystem.cs" />
@@ -171,10 +163,6 @@
     <Compile Include="Law\Police\PoliceSystem.cs" />
     <Compile Include="Law\Police\PoliceUnitModel.cs" />
     <Compile Include="Law\Police\PoliceUnitStatus.cs" />
-    <Compile Include="Loggin\LogBuffer.cs" />
-    <Compile Include="Loggin\LogEntry.cs" />
-    <Compile Include="Loggin\LogRateLimiter.cs" />
-    <Compile Include="Loggin\OptimizedLogger.cs" />
     <Compile Include="Needs\Events\NeedChangedEvent.cs" />
     <Compile Include="Needs\Events\NeedCriticalEvent.cs" />
     <Compile Include="Needs\NeedsSettings.cs" />
@@ -182,25 +170,19 @@
     <Compile Include="Needs\NeedsSystem.cs" />
     <Compile Include="Needs\NeedState.cs" />
     <Compile Include="Needs\NeedType.cs" />
-    <Compile Include="Performance\NativeCache.cs" />
-    <Compile Include="Performance\PerformanceConfig.cs" />
-    <Compile Include="Performance\PerformanceMetrics.cs" />
-    <Compile Include="Performance\PlayerSnapshot.cs" />
-    <Compile Include="Performance\TickProfiler.cs" />
-    <Compile Include="Pooling\IPoolable.cs" />
-    <Compile Include="Pooling\ListPool.cs" />
-    <Compile Include="Pooling\ObjectPool.cs" />
-    <Compile Include="Pooling\StringBuilderPool.cs" />
     <Compile Include="RLFCore.cs" />
     <Compile Include="Configuration\IniReader.cs" />
     <Compile Include="Events\EventArgs\RLFEventArgs.cs" />
     <Compile Include="Events\EventManager.cs" />
     <Compile Include="Logging\Logger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Scheduling\ISchedulable.cs" />
-    <Compile Include="Scheduling\ScheduledTask.cs" />
-    <Compile Include="Scheduling\TaskPriority.cs" />
-    <Compile Include="Scheduling\TaskScheduler.cs" />
+    <Compile Include="Safety\AdaptiveTickController.cs" />
+    <Compile Include="Safety\GameplayContextAnalyzer.cs" />
+    <Compile Include="Safety\ISafetyDataProvider.cs" />
+    <Compile Include="Safety\SafeExecutionManager.cs" />
+    <Compile Include="Safety\SafetyLogger.cs" />
+    <Compile Include="Safety\SafetyState.cs" />
+    <Compile Include="Safety\ScriptActivityMonitor.cs" />
     <Compile Include="Systems\CoreLifecycleSystem.cs" />
     <Compile Include="Systems\RealTimeWeatherSystem.cs" />
     <Compile Include="Systems\SystemBase.cs" />
@@ -212,16 +194,13 @@
     <Compile Include="Utilities\Vehicles\VehicleData.cs" />
     <Compile Include="Utilities\Vehicles\VehicleOwnershipSystem.cs" />
     <Compile Include="Utilities\Vehicles\VehicleState.cs" />
-    <Compile Include="Watchdog\SystemHealthStatus.cs" />
-    <Compile Include="Watchdog\Watchdog.cs" />
-    <Compile Include="Watchdog\WatchdogConfig.cs" />
   </ItemGroup>
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>xcopy /Y "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V Enhanced\scripts\RLF\"
 
-xcopy /Y "$(TargetPath)" "C:\Users\borge\OneDrive\Documentos\MODPACK RLF"
+xcopy /Y "$(TargetPath)" "C:\Users\borge\OneDrive\Documentos\MODPACK RLF\ARQUIVOS PRINCIPAIS"
 
 xcopy /Y "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V\scripts\RLF\"</PostBuildEvent>
   </PropertyGroup>

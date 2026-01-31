@@ -1,10 +1,9 @@
-﻿using System;
-using RLF.Core.Economy.Wallet;
-using RLF.Core.Economy.Ledger;
-using RLF.Core.Economy.Expenses;
-using RLF.Core.Economy.Debt;
-using RLF.Core.Economy.Transactions;
+﻿using RLF.Core.Economy.Debt;
 using RLF.Core.Economy.Events;
+using RLF.Core.Economy.Expenses;
+using RLF.Core.Economy.Ledger;
+using RLF.Core.Economy.Transactions;
+using RLF.Core.Economy.Wallet;
 
 namespace RLF.Core.Economy
 {

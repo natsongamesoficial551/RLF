@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using RLF.Core.Identity.Enums;
+﻿using RLF.Core.Identity.Enums;
+using System.Collections.Generic;
 
 namespace RLF.Core.Law
 {

@@ -1,18 +1,15 @@
 using System;
-using System.Collections.Generic;
-using GTA;
-using GTA.Math;
-using GTA.Native;
 
-namespace RLF.GTA.Safety
+namespace RLF.Core.Safety
 {
     /// <summary>
-    /// Analisa o contexto atual do gameplay para determinar estados do jogador e mundo.
-    /// OTIMIZADO: Cache agressivo, menos DateTime.Now, throttling em calls pesados.
+    /// Analisa contexto do gameplay usando dados fornecidos pelo Provider.
+    /// REFINADO: GetFrequencyMultiplier aceita SystemCategory diretamente.
     /// </summary>
     public sealed class GameplayContextAnalyzer
     {
         #region Singleton
+
         private static GameplayContextAnalyzer _instance;
         private static readonly object _lock = new object();
 
@@ -31,168 +28,58 @@ namespace RLF.GTA.Safety
                 return _instance;
             }
         }
+
         #endregion
 
-        #region Enums
-        public enum PlayerActivityState
-        {
-            Unknown,
-            Idle,
-            InMenu,
-            InInterior,
-            DrivingFast,
-            InCombat,
-            AFK,
-            InCutscene,
-            Walking,
-            DrivingSlow,
-            Swimming,
-            Flying,
-            Falling
-        }
+        #region Fields
 
-        public enum WorldState
-        {
-            Normal,
-            Quiet,
-            NoNPCsNearby,
-            DeepNight,
-            HeavyWeather,
-            HighActivity
-        }
-
-        public enum PerformanceLevel
-        {
-            Optimal,
-            Normal,
-            LightProtection,
-            HeavyProtection,
-            Critical,
-            Survival  // NOVO: Modo sobrevivência após longo tempo
-        }
-
-        [Flags]
-        public enum InteriorType
-        {
-            None = 0,
-            Small = 1,
-            Medium = 2,
-            Large = 4,
-            Safehouse = 8,
-            Mission = 16
-        }
-        #endregion
-
-        #region Context Data Classes
-        public class PlayerContext
-        {
-            public PlayerActivityState ActivityState;
-            public Vector3 Position;
-            public float Speed;
-            public int IdleFrames;          // OTIMIZADO: frames ao invés de float time
-            public int AFKFrames;           // OTIMIZADO: frames ao invés de DateTime
-            public bool IsInVehicle;
-            public bool IsArmed;
-            public bool IsShooting;
-            public bool IsInCover;
-            public bool IsWanted;
-            public int WantedLevel;
-            public bool IsInInterior;
-            public InteriorType CurrentInteriorType;
-            public int FramesSinceCombat;   // OTIMIZADO: frames ao invés de DateTime
-            public float Health;
-            public float LastHealth;
-            public bool TookDamageRecently;
-        }
-
-        public class WorldContext
-        {
-            public WorldState CurrentState;
-            public int Hour;
-            public bool IsDeepNight;
-            public bool IsHeavyWeather;
-            public int NearbyPedCount;       // Cache - atualiza a cada N frames
-            public int NearbyVehicleCount;   // Cache
-            public int RelevantNPCCount;     // Cache
-            public bool HasActiveEvents;
-            public int ActiveEventCount;
-        }
-
-        public class PerformanceContext
-        {
-            public PerformanceLevel Level;
-            public float CurrentFPS;
-            public float AverageFPS;
-            public int ConsecutiveLowFPSFrames;
-            public int ConsecutiveHighFPSFrames;
-            public bool GCSpikeDetected;
-            public int FramesSinceGCCheck;   // OTIMIZADO: throttle GC checks
-        }
-
-        public class SessionContext
-        {
-            public int TotalFrames;          // NOVO: tracking de sessão
-            public int MinutesSinceStart;    // NOVO: para modo survival
-            public bool SurvivalModeActive;  // NOVO
-        }
-
-        public class FullContext
-        {
-            public PlayerContext Player = new PlayerContext();
-            public WorldContext World = new WorldContext();
-            public PerformanceContext Performance = new PerformanceContext();
-            public SessionContext Session = new SessionContext();
-            public bool IsValid;
-        }
-        #endregion
-
-        #region Private Fields - OTIMIZADO: menos objetos, mais primitivos
         private FullContext _currentContext = new FullContext();
+        private ISafetyDataProvider _dataProvider;
 
-        // FPS tracking simplificado - array fixo ao invés de Queue
-        private readonly float[] _fpsBuffer = new float[60];  // ~2 segundos
+        // FPS buffer
+        private readonly float[] _fpsBuffer = new float[60];
         private int _fpsBufferIndex;
         private int _fpsBufferCount;
 
-        // Cache de posição
-        private Vector3 _lastPosition;
-        private Vector3 _lastCameraDirection;
+        // Cache
+        private float _lastPosX, _lastPosY, _lastPosZ;
 
-        // Contadores de frame (substitui DateTime)
+        // Frame counters
         private int _frameCounter;
         private int _lastFullAnalysisFrame;
         private int _lastWorldScanFrame;
         private int _lastGCCheckFrame;
-        private int _sessionStartFrame;
 
-        // Cache de mundo (atualiza raramente)
+        // Cached world data
         private int _cachedNearbyPedCount;
         private int _cachedRelevantNPCCount;
-        private float _cachedNearestPedDist = 999f;
 
-        // GC tracking otimizado
+        // GC tracking
         private int _lastGCCount;
 
-        // Thresholds em frames (assumindo ~30fps base)
-        private const int IDLE_THRESHOLD_FRAMES = 900;        // ~30 segundos
-        private const int AFK_THRESHOLD_FRAMES = 3600;        // ~2 minutos
-        private const int COMBAT_COOLDOWN_FRAMES = 300;       // ~10 segundos
-        private const int FULL_ANALYSIS_INTERVAL = 15;        // A cada 15 frames (~500ms)
-        private const int WORLD_SCAN_INTERVAL = 60;           // A cada 60 frames (~2s)
-        private const int GC_CHECK_INTERVAL = 90;             // A cada 90 frames (~3s)
-        private const int SURVIVAL_MODE_FRAMES = 54000;       // ~30 minutos
+        // Thresholds (frames @ ~30fps)
+        private const int IDLE_THRESHOLD_FRAMES = 900;
+        private const int AFK_THRESHOLD_FRAMES = 3600;
+        private const int COMBAT_COOLDOWN_FRAMES = 300;
+        private const int FULL_ANALYSIS_INTERVAL = 15;
+        private const int WORLD_SCAN_INTERVAL = 60;
+        private const int GC_CHECK_INTERVAL = 90;
+        private const int SURVIVAL_MODE_FRAMES = 54000;
         private const float FAST_DRIVING_SPEED = 25f;
+
         #endregion
 
         #region Constructor
+
         private GameplayContextAnalyzer()
         {
             _lastGCCount = GC.CollectionCount(0);
-            _sessionStartFrame = 0;
         }
+
         #endregion
 
-        #region Public Properties
+        #region Properties
+
         public FullContext CurrentContext => _currentContext;
         public PlayerActivityState PlayerState => _currentContext.Player.ActivityState;
         public WorldState CurrentWorldState => _currentContext.World.CurrentState;
@@ -201,53 +88,66 @@ namespace RLF.GTA.Safety
         public bool IsPlayerAFK => _currentContext.Player.AFKFrames >= AFK_THRESHOLD_FRAMES;
         public bool IsInProtectionMode => _currentContext.Performance.Level >= PerformanceLevel.LightProtection;
         public bool IsInSurvivalMode => _currentContext.Session.SurvivalModeActive;
-        public bool ShouldReduceActivity => IsPlayerIdle || IsPlayerAFK || IsInProtectionMode ||
-                                            _currentContext.World.IsDeepNight || IsInSurvivalMode;
+
+        public bool ShouldReduceActivity =>
+            IsPlayerIdle || IsPlayerAFK || IsInProtectionMode ||
+            _currentContext.World.IsDeepNight || IsInSurvivalMode;
+
         #endregion
 
-        #region Main Analysis - OTIMIZADO
-        /// <summary>
-        /// Análise principal - LEVE por frame, PESADA espaçada
-        /// </summary>
+        #region Initialization
+
+        public void SetDataProvider(ISafetyDataProvider provider)
+        {
+            _dataProvider = provider;
+        }
+
+        #endregion
+
+        #region Main Analysis
+
         public FullContext Analyze()
         {
+            if (_dataProvider == null)
+            {
+                _currentContext.IsValid = false;
+                return _currentContext;
+            }
+
             _frameCounter++;
             _currentContext.Session.TotalFrames = _frameCounter;
 
-            // Análise ULTRA-LEVE todo frame (apenas essenciais)
             AnalyzeQuick();
 
-            // Análise MÉDIA a cada N frames
             if (_frameCounter - _lastFullAnalysisFrame >= FULL_ANALYSIS_INTERVAL)
             {
                 _lastFullAnalysisFrame = _frameCounter;
                 AnalyzeMedium();
             }
 
-            // Análise PESADA (world scan) muito espaçada
             if (_frameCounter - _lastWorldScanFrame >= WORLD_SCAN_INTERVAL)
             {
                 _lastWorldScanFrame = _frameCounter;
                 AnalyzeWorld();
             }
 
-            // Check de sessão para survival mode
             CheckSessionTime();
 
             _currentContext.IsValid = true;
             return _currentContext;
         }
+
         #endregion
 
-        #region Quick Analysis - TODO FRAME (ultra-leve)
+        #region Quick Analysis (every frame)
+
         private void AnalyzeQuick()
         {
-            // FPS tracking simples
-            float frameTime = Game.LastFrameTime;
+            float frameTime = _dataProvider.GetLastFrameTime();
             if (frameTime > 0.001f)
             {
                 float fps = 1f / frameTime;
-                fps = fps > 200f ? 200f : fps;  // Cap sem Math.Min
+                fps = fps > 200f ? 200f : fps;
 
                 _fpsBuffer[_fpsBufferIndex] = fps;
                 _fpsBufferIndex = (_fpsBufferIndex + 1) % 60;
@@ -256,20 +156,22 @@ namespace RLF.GTA.Safety
                 _currentContext.Performance.CurrentFPS = fps;
             }
 
-            // Player básico (sem natives pesados)
-            Ped player = Game.Player?.Character;
-            if (player == null || !player.Exists())
-                return;
+            float posX = _dataProvider.GetPlayerPositionX();
+            float posY = _dataProvider.GetPlayerPositionY();
+            float posZ = _dataProvider.GetPlayerPositionZ();
+            float speed = _dataProvider.GetPlayerSpeed();
 
-            Vector3 pos = player.Position;
-            float speed = player.Velocity.Length();
-
-            _currentContext.Player.Position = pos;
+            _currentContext.Player.PositionX = posX;
+            _currentContext.Player.PositionY = posY;
+            _currentContext.Player.PositionZ = posZ;
             _currentContext.Player.Speed = speed;
-            _currentContext.Player.IsInVehicle = player.IsInVehicle();
+            _currentContext.Player.IsInVehicle = _dataProvider.IsPlayerInVehicle();
 
-            // Detecção de movimento (sem camera direction - pesado)
-            float moved = (_lastPosition - pos).Length();
+            float dx = _lastPosX - posX;
+            float dy = _lastPosY - posY;
+            float dz = _lastPosZ - posZ;
+            float moved = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
             if (moved < 0.3f && speed < 0.1f)
             {
                 _currentContext.Player.IdleFrames++;
@@ -278,13 +180,13 @@ namespace RLF.GTA.Safety
             {
                 _currentContext.Player.IdleFrames = 0;
             }
-            _lastPosition = pos;
+            _lastPosX = posX;
+            _lastPosY = posY;
+            _lastPosZ = posZ;
 
-            // Input detection simplificado (sem GameplayCamera)
-            bool hasInput = Game.IsControlPressed(Control.MoveUpOnly) ||
-                           Game.IsControlPressed(Control.MoveDownOnly) ||
-                           Game.IsControlPressed(Control.Attack) ||
-                           Game.IsControlPressed(Control.Aim);
+            bool hasInput = _dataProvider.IsAnyMovementInputPressed() ||
+                           _dataProvider.IsAttackInputPressed() ||
+                           _dataProvider.IsAimInputPressed();
 
             if (hasInput)
             {
@@ -295,65 +197,46 @@ namespace RLF.GTA.Safety
                 _currentContext.Player.AFKFrames++;
             }
 
-            // Combat cooldown counter
             if (_currentContext.Player.FramesSinceCombat < COMBAT_COOLDOWN_FRAMES)
             {
                 _currentContext.Player.FramesSinceCombat++;
             }
 
-            // Dano recebido
-            float hp = player.Health;
+            float hp = _dataProvider.GetPlayerHealth();
             if (hp < _currentContext.Player.LastHealth)
             {
                 _currentContext.Player.TookDamageRecently = true;
                 _currentContext.Player.FramesSinceCombat = 0;
             }
-            else if (_currentContext.Player.FramesSinceCombat > 90) // ~3s
+            else if (_currentContext.Player.FramesSinceCombat > 90)
             {
                 _currentContext.Player.TookDamageRecently = false;
             }
             _currentContext.Player.LastHealth = hp;
             _currentContext.Player.Health = hp;
         }
+
         #endregion
 
-        #region Medium Analysis - A CADA 15 FRAMES
+        #region Medium Analysis (every 15 frames)
+
         private void AnalyzeMedium()
         {
-            Ped player = Game.Player?.Character;
-            if (player == null) return;
-
-            // Wanted level
-            _currentContext.Player.WantedLevel = Game.Player.WantedLevel;
+            _currentContext.Player.WantedLevel = _dataProvider.GetPlayerWantedLevel();
             _currentContext.Player.IsWanted = _currentContext.Player.WantedLevel > 0;
+            _currentContext.Player.IsInCover = _dataProvider.IsPlayerInCover();
+            _currentContext.Player.IsInInterior = _dataProvider.IsInteriorScene();
 
-            // Combate
-            _currentContext.Player.IsShooting = Game.IsControlPressed(Control.Attack);
-            _currentContext.Player.IsInCover = player.IsInCover;
+            bool inMenu = _dataProvider.IsGamePaused();
+            bool inCutscene = _dataProvider.IsCutsceneActive();
 
-            // Interior (native leve)
-            _currentContext.Player.IsInInterior = Function.Call<bool>(Hash.IS_INTERIOR_SCENE);
-            if (_currentContext.Player.IsInInterior)
-            {
-                _currentContext.Player.CurrentInteriorType = InteriorType.Small; // Assume small
-            }
-
-            // Menu/Cutscene
-            bool inMenu = Game.IsPaused;
-            bool inCutscene = Function.Call<bool>(Hash.IS_CUTSCENE_ACTIVE);
-
-            // Hora do jogo
-            _currentContext.World.Hour = Function.Call<int>(Hash.GET_CLOCK_HOURS);
+            _currentContext.World.Hour = _dataProvider.GetGameHour();
             _currentContext.World.IsDeepNight = _currentContext.World.Hour >= 0 &&
                                                 _currentContext.World.Hour < 5;
 
-            // Clima (só enum, sem processamento)
-            Weather w = World.Weather;
-            _currentContext.World.IsHeavyWeather = (w == Weather.Raining ||
-                                                    w == Weather.ThunderStorm ||
-                                                    w == Weather.Blizzard);
+            int weather = _dataProvider.GetCurrentWeather();
+            _currentContext.World.IsHeavyWeather = (weather == 7 || weather == 8 || weather == 11);
 
-            // Calcular FPS médio
             if (_fpsBufferCount > 0)
             {
                 float sum = 0;
@@ -362,7 +245,6 @@ namespace RLF.GTA.Safety
                 _currentContext.Performance.AverageFPS = sum / _fpsBufferCount;
             }
 
-            // GC check throttled
             if (_frameCounter - _lastGCCheckFrame >= GC_CHECK_INTERVAL)
             {
                 _lastGCCheckFrame = _frameCounter;
@@ -375,19 +257,16 @@ namespace RLF.GTA.Safety
                 _currentContext.Performance.GCSpikeDetected = false;
             }
 
-            // Determinar estados
             DeterminePlayerState(inMenu, inCutscene);
             DeterminePerformanceLevel();
         }
+
         #endregion
 
-        #region World Analysis - A CADA 60 FRAMES (pesado, espaçado)
+        #region World Analysis (every 60 frames)
+
         private void AnalyzeWorld()
         {
-            Ped player = Game.Player?.Character;
-            if (player == null) return;
-
-            // Em survival mode, não escanear mundo
             if (_currentContext.Session.SurvivalModeActive)
             {
                 _currentContext.World.NearbyPedCount = 0;
@@ -396,82 +275,44 @@ namespace RLF.GTA.Safety
                 return;
             }
 
-            // Em proteção pesada, escanear com raio menor
             float scanRadius = 50f;
             if (_currentContext.Performance.Level >= PerformanceLevel.HeavyProtection)
             {
                 scanRadius = 25f;
             }
 
-            Vector3 pos = player.Position;
-
-            // World.GetNearbyPeds - ÚNICO CALL PESADO, bem espaçado
-            Ped[] peds = World.GetNearbyPeds(pos, scanRadius);
-
-            int pedCount = 0;
-            int relevantCount = 0;
-            float nearestDist = 999f;
-
-            if (peds != null)
-            {
-                int maxCheck = peds.Length > 20 ? 20 : peds.Length; // Limitar iteração
-
-                for (int i = 0; i < maxCheck; i++)
-                {
-                    Ped p = peds[i];
-                    if (p == null || p == player) continue;
-
-                    pedCount++;
-                    float dist = (p.Position - pos).Length();
-
-                    if (dist < nearestDist)
-                        nearestDist = dist;
-
-                    if (dist < 30f)
-                        relevantCount++;
-                }
-            }
+            int pedCount = _dataProvider.GetNearbyPedCount(scanRadius);
 
             _cachedNearbyPedCount = pedCount;
-            _cachedRelevantNPCCount = relevantCount;
-            _cachedNearestPedDist = nearestDist;
+            _cachedRelevantNPCCount = pedCount > 5 ? pedCount / 2 : pedCount;
 
             _currentContext.World.NearbyPedCount = pedCount;
-            _currentContext.World.RelevantNPCCount = relevantCount;
+            _currentContext.World.RelevantNPCCount = _cachedRelevantNPCCount;
 
-            // Determinar estado do mundo
             DetermineWorldState();
         }
+
         #endregion
 
-        #region Session Time Check - SURVIVAL MODE
+        #region Session Time
+
         private void CheckSessionTime()
         {
-            // Calcular minutos aproximados (30fps base)
             int minutes = _frameCounter / 1800;
             _currentContext.Session.MinutesSinceStart = minutes;
 
-            // Ativar survival mode após 30 minutos
             if (_frameCounter >= SURVIVAL_MODE_FRAMES && !_currentContext.Session.SurvivalModeActive)
             {
                 _currentContext.Session.SurvivalModeActive = true;
                 _currentContext.Performance.Level = PerformanceLevel.Survival;
-                SafetyLogger.Instance?.Log("[GameplayContextAnalyzer] === SURVIVAL MODE ATIVADO === (30+ min de sessão)");
-            }
-
-            // Em survival, forçar nível mais baixo periodicamente
-            if (_currentContext.Session.SurvivalModeActive)
-            {
-                // A cada 5 minutos extras, logar
-                if (minutes > 30 && minutes % 5 == 0 && _frameCounter % 9000 < 30)
-                {
-                    SafetyLogger.Instance?.Log($"[GameplayContextAnalyzer] Survival mode: {minutes} minutos de sessão");
-                }
+                SafetyLogger.Instance?.Log("[GameplayContextAnalyzer] === SURVIVAL MODE ACTIVATED === (30+ min session)");
             }
         }
+
         #endregion
 
         #region State Determination
+
         private void DeterminePlayerState(bool inMenu, bool inCutscene)
         {
             var p = _currentContext.Player;
@@ -494,7 +335,6 @@ namespace RLF.GTA.Safety
                 return;
             }
 
-            // Combate
             if (p.FramesSinceCombat < COMBAT_COOLDOWN_FRAMES || p.IsWanted)
             {
                 p.ActivityState = PlayerActivityState.InCombat;
@@ -531,7 +371,7 @@ namespace RLF.GTA.Safety
             {
                 w.CurrentState = WorldState.Quiet;
             }
-            else if (_cachedNearestPedDist > 80f)
+            else if (_cachedNearbyPedCount < 3)
             {
                 w.CurrentState = WorldState.NoNPCsNearby;
             }
@@ -553,14 +393,12 @@ namespace RLF.GTA.Safety
         {
             var perf = _currentContext.Performance;
 
-            // Survival mode override
             if (_currentContext.Session.SurvivalModeActive)
             {
                 perf.Level = PerformanceLevel.Survival;
                 return;
             }
 
-            // GC spike = critical temporário
             if (perf.GCSpikeDetected)
             {
                 perf.Level = PerformanceLevel.Critical;
@@ -599,28 +437,23 @@ namespace RLF.GTA.Safety
                 perf.Level = PerformanceLevel.Normal;
             }
         }
+
         #endregion
 
         #region Public Query Methods
-        public bool ShouldSystemRun(string systemType)
+
+        public bool ShouldSystemRun(string systemId)
         {
-            // Em survival mode, quase nada roda
             if (_currentContext.Session.SurvivalModeActive)
             {
-                switch (systemType.ToLower())
-                {
-                    case "core":
-                    case "player":
-                        return true;
-                    default:
-                        return false;
-                }
+                string lower = systemId.ToLowerInvariant();
+                return lower == "core" || lower == "player" || lower.Contains("core");
             }
 
             var player = _currentContext.Player;
-            var world = _currentContext.World;
+            string type = systemId.ToLowerInvariant();
 
-            switch (systemType.ToLower())
+            switch (type)
             {
                 case "crimescanner":
                     return _cachedRelevantNPCCount > 0 &&
@@ -649,9 +482,11 @@ namespace RLF.GTA.Safety
             }
         }
 
-        public float GetFrequencyMultiplier(string systemType)
+        /// <summary>
+        /// REFINADO: Overload que aceita SystemCategory diretamente (prefer�vel)
+        /// </summary>
+        public float GetFrequencyMultiplier(SystemCategory category)
         {
-            // Survival mode = quase zero
             if (_currentContext.Session.SurvivalModeActive)
                 return 0.05f;
 
@@ -679,7 +514,60 @@ namespace RLF.GTA.Safety
             // Por mundo
             if (_currentContext.World.IsDeepNight) mult *= 0.7f;
 
+            // Ajustes espec�ficos por categoria
+            switch (category)
+            {
+                case SystemCategory.Traffic:
+                    if (_currentContext.Player.ActivityState == PlayerActivityState.DrivingFast)
+                        mult = mult < 1f ? 1f : mult; // Priorizar tr�nsito
+                    break;
+
+                case SystemCategory.AI:
+                    if (_currentContext.Player.ActivityState == PlayerActivityState.DrivingFast)
+                        mult *= 0.5f; // Reduzir AI quando dirigindo r�pido
+                    break;
+
+                case SystemCategory.LivingWorld:
+                    if (_currentContext.Player.ActivityState == PlayerActivityState.DrivingFast)
+                        mult *= 0.3f; // Pausar eventos secund�rios
+                    break;
+
+                case SystemCategory.Debug:
+                    return 0f;
+            }
+
             return mult < 0.05f ? 0.05f : (mult > 1f ? 1f : mult);
+        }
+
+        /// <summary>
+        /// Overload mantido para compatibilidade (usa string)
+        /// </summary>
+        public float GetFrequencyMultiplier(string systemType)
+        {
+            // Tenta converter para categoria
+            if (Enum.TryParse<SystemCategory>(systemType, true, out var category))
+            {
+                return GetFrequencyMultiplier(category);
+            }
+
+            // Fallback: mapeamento manual
+            string lower = systemType.ToLowerInvariant();
+            switch (lower)
+            {
+                case "core": return GetFrequencyMultiplier(SystemCategory.Core);
+                case "combat": return GetFrequencyMultiplier(SystemCategory.Combat);
+                case "ai": return GetFrequencyMultiplier(SystemCategory.AI);
+                case "traffic": return GetFrequencyMultiplier(SystemCategory.Traffic);
+                case "crime":
+                case "crimescanner": return GetFrequencyMultiplier(SystemCategory.Crime);
+                case "economy": return GetFrequencyMultiplier(SystemCategory.Economy);
+                case "jobs": return GetFrequencyMultiplier(SystemCategory.Jobs);
+                case "ui": return GetFrequencyMultiplier(SystemCategory.UI);
+                case "weather": return GetFrequencyMultiplier(SystemCategory.Weather);
+                case "livingworld": return GetFrequencyMultiplier(SystemCategory.LivingWorld);
+                case "debug": return GetFrequencyMultiplier(SystemCategory.Debug);
+                default: return GetFrequencyMultiplier(SystemCategory.Custom);
+            }
         }
 
         public void RegisterActiveEvent()
@@ -698,17 +586,15 @@ namespace RLF.GTA.Safety
             }
         }
 
-        /// <summary>
-        /// Reset de sessão (para quando jogador carrega save, etc)
-        /// </summary>
         public void ResetSession()
         {
             _frameCounter = 0;
             _currentContext.Session.TotalFrames = 0;
             _currentContext.Session.MinutesSinceStart = 0;
             _currentContext.Session.SurvivalModeActive = false;
-            SafetyLogger.Instance?.Log("[GameplayContextAnalyzer] Sessão resetada");
+            SafetyLogger.Instance?.Log("[GameplayContextAnalyzer] Session reset");
         }
+
         #endregion
     }
 }

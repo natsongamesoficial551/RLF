@@ -1,5 +1,5 @@
-﻿using System;
-using RLF.Core.Economy.Transactions;
+﻿using RLF.Core.Economy.Transactions;
+using System;
 
 namespace RLF.Core.Economy.Ledger
 {

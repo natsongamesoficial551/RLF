@@ -215,19 +215,19 @@ namespace RLF.Core.Gangs
             SetMutualRelation(GangType.Ballas, GangType.Vagos, -60);
             SetMutualRelation(GangType.Ballas, GangType.Marabunta, -50);
             SetMutualRelation(GangType.Vagos, GangType.Marabunta, -40);
-            
+
             // CRIME ORGANIZADO - Neutro/Competitivo entre si
             SetMutualRelation(GangType.ArmenianMob, GangType.TriadTong, -30);
             SetMutualRelation(GangType.ArmenianMob, GangType.KoreanMob, -20);
             SetMutualRelation(GangType.TriadTong, GangType.KoreanMob, -25);
-            
+
             // CRIME ORGANIZADO vs GANGUES DE RUA - Desprezam gangues de rua
             SetRelationWithGroup(GangType.ArmenianMob, new[] { GangType.Families, GangType.Ballas, GangType.Vagos, GangType.Marabunta }, -40);
             SetRelationWithGroup(GangType.TriadTong, new[] { GangType.Families, GangType.Ballas, GangType.Vagos, GangType.Marabunta }, -35);
             SetRelationWithGroup(GangType.KoreanMob, new[] { GangType.Families, GangType.Ballas, GangType.Vagos, GangType.Marabunta }, -30);
-            
+
             // LOST MC - Rivais com todos
-            SetRelationWithGroup(GangType.LostMC, 
+            SetRelationWithGroup(GangType.LostMC,
                 new[] { GangType.Families, GangType.Ballas, GangType.Vagos, GangType.Marabunta,
                         GangType.ArmenianMob, GangType.TriadTong, GangType.KoreanMob }, -50);
         }
@@ -250,7 +250,7 @@ namespace RLF.Core.Gangs
         private void AssignInitialTerritories()
         {
             var territories = TerritoryDatabase.GetAllTerritories();
-            
+
             foreach (var territory in territories)
             {
                 if (territory.ControllingGang.HasValue)
@@ -343,7 +343,7 @@ namespace RLF.Core.Gangs
                     if (relation.Value <= -80) // Guerra ativa
                     {
                         // Evita duplicatas
-                        var existing = wars.FirstOrDefault(w => 
+                        var existing = wars.FirstOrDefault(w =>
                             (w.Item1 == gang.Type && w.Item2 == relation.Key) ||
                             (w.Item2 == gang.Type && w.Item1 == relation.Key));
 

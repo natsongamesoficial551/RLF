@@ -1,6 +1,6 @@
-﻿using System;
-using RLF.Core.CharacterCreator.Data;
+﻿using RLF.Core.CharacterCreator.Data;
 using RLF.Core.CharacterCreator.Enums;
+using System;
 
 namespace RLF.Core.Events
 {

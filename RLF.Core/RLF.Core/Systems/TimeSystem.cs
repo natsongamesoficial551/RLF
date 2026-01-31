@@ -1,7 +1,7 @@
-using System;
 using RLF.Core.Events;
 using RLF.Core.Events.EventArgs;
 using RLF.Core.Logging;
+using System;
 
 namespace RLF.Core.Systems
 {

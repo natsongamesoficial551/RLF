@@ -1,8 +1,8 @@
+using RLF.Core.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using RLF.Core.Logging;
 
 namespace RLF.Core.Configuration
 {

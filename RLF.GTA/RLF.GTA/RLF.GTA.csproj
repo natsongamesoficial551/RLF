@@ -102,9 +102,6 @@
     <Compile Include="CharacterCreator\Utils\CharacterDataCapture.cs" />
     <Compile Include="CharacterCreator\World\CreatorEnvironment.cs" />
     <Compile Include="CharacterCreator\World\CreatorLocations.cs" />
-    <Compile Include="Compatibility\EngineSafetyProfile.cs" />
-    <Compile Include="Compatibility\GtaVersionManager.cs" />
-    <Compile Include="Compatibility\SafeGameActions.cs" />
     <Compile Include="CoreIntegration\EconomyBridge.cs" />
     <Compile Include="CoreIntegration\Identity\AircraftLicenseObserver.cs" />
     <Compile Include="CoreIntegration\Identity\DrivingLicenseObserver.cs" />
@@ -158,7 +155,6 @@
     <Compile Include="Dealership\DealershipCatalog.cs" />
     <Compile Include="Dealership\DealershipController.cs" />
     <Compile Include="Dealership\DealershipMenu.cs" />
-    <Compile Include="Entities\GTAEntityBridge.cs" />
     <Compile Include="GameBridge.cs" />
     <Compile Include="GTAOnly\Awareness\AwarenessBootstrap.cs" />
     <Compile Include="GTAOnly\Awareness\AwarenessConfig.cs" />
@@ -248,12 +244,13 @@
     <Compile Include="Law\Police\PoliceUnit.cs" />
     <Compile Include="Law\Police\PoliceUnitState.cs" />
     <Compile Include="Law\Police\PoliceUnitType.cs" />
-    <Compile Include="Performance\PlayerSnapshotCapture.cs" />
     <Compile Include="Phone\PhoneContactManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Bootstrap\RLFBootstrap.cs" />
     <Compile Include="Bootstrap\ShutdownHandler.cs" />
     <Compile Include="Bootstrap\TickManager.cs" />
+    <Compile Include="Safety\SafetyBridgeScript.cs" />
+    <Compile Include="Safety\SafetyDataProvider.cs" />
     <Compile Include="RLFEntry.cs" />
     <Compile Include="Vehicles\VehicleAbandonWatcher.cs" />
     <Compile Include="Vehicles\VehicleGarageEntryWatcher.cs" />

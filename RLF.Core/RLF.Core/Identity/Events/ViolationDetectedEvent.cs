@@ -1,5 +1,4 @@
-﻿using RLF.Core.Events;
-using RLF.Core.Events.EventArgs;
+﻿using RLF.Core.Events.EventArgs;
 using RLF.Core.Identity.Enums;
 
 namespace RLF.Core.Identity.Events

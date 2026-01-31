@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using RLF.Core.CharacterCreator.Data;
+﻿using RLF.Core.CharacterCreator.Data;
+using System.Collections.Generic;
 
 namespace RLF.Core.CharacterCreator.Interfaces
 {

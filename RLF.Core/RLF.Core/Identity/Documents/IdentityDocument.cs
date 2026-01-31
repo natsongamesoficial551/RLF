@@ -1,6 +1,6 @@
-﻿using System;
+﻿using RLF.Core.Identity.Enums;
+using System;
 using System.Collections.Generic;
-using RLF.Core.Identity.Enums;
 
 namespace RLF.Core.Identity.Documents
 {

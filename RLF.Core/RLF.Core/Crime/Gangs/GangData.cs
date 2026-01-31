@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace RLF.Core.Gangs
 {
@@ -12,31 +11,31 @@ namespace RLF.Core.Gangs
         public GangType Type { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
-        
+
         // Estatísticas
         public int TotalMembers { get; set; }
         public int ActiveMembers { get; set; }
         public decimal Treasury { get; set; }               // Cofre da gangue
         public int Reputation { get; set; }                 // Reputação (0-100)
         public int PowerLevel { get; set; }                 // Nível de poder (baseado em territórios)
-        
+
         // Territórios
         public List<string> ControlledTerritories { get; set; }
         public int TerritoryCount => ControlledTerritories.Count;
-        
+
         // Relações com outras gangues (-100 a 100)
         public Dictionary<GangType, int> Relations { get; set; }
-        
+
         // Equipamento
         public List<string> AvailableWeapons { get; set; }
         public List<string> AvailableVehicles { get; set; }
-        
+
         // Atividades
         public DateTime LastActivity { get; set; }
         public int CrimesCommitted { get; set; }
         public int TerritoriesCaptured { get; set; }
         public int WarsFought { get; set; }
-        
+
         // Config
         public bool IsAggressive { get; set; }              // Se ataca outros territórios
         public float ActivityLevel { get; set; }            // 0.0 a 1.0 - quão ativa é
@@ -67,7 +66,7 @@ namespace RLF.Core.Gangs
         public bool SpendMoney(decimal amount)
         {
             if (Treasury < amount) return false;
-            
+
             Treasury -= amount;
             return true;
         }
@@ -136,7 +135,7 @@ namespace RLF.Core.Gangs
         {
             if (Relations.ContainsKey(otherGang))
                 return Relations[otherGang];
-            
+
             return 0; // Neutro por padrão
         }
 
@@ -224,7 +223,7 @@ namespace RLF.Core.Gangs
         public decimal CalculateDailyIncome()
         {
             decimal totalIncome = 0m;
-            
+
             foreach (string territoryId in ControlledTerritories)
             {
                 var territory = TerritoryDatabase.GetTerritoryById(territoryId);
@@ -234,7 +233,7 @@ namespace RLF.Core.Gangs
                     totalIncome += territory.DailyIncome * (decimal)territory.ControlStrength;
                 }
             }
-            
+
             return totalIncome;
         }
 
@@ -266,11 +265,11 @@ namespace RLF.Core.Gangs
         public bool CanRecruitPlayerWithRequirements(int playerCrimes, int playerReputation)
         {
             if (!CanRecruitPlayer) return false;
-            
+
             // Requisitos mínimos
             int minCrimes = GetMinimumCrimesRequired();
             int minReputation = GetMinimumReputationRequired();
-            
+
             return playerCrimes >= minCrimes && playerReputation >= minReputation;
         }
 
@@ -278,13 +277,13 @@ namespace RLF.Core.Gangs
         {
             // Gangues de rua: requisitos baixos
             if (Type.IsStreetGang()) return 5;
-            
+
             // Crime organizado: requisitos médios
             if (Type.IsOrganizedCrime()) return 15;
-            
+
             // Lost MC: requisitos médios
             if (Type == GangType.LostMC) return 10;
-            
+
             return 5;
         }
 
@@ -292,13 +291,13 @@ namespace RLF.Core.Gangs
         {
             // Gangues de rua: reputação baixa
             if (Type.IsStreetGang()) return 10;
-            
+
             // Crime organizado: reputação alta
             if (Type.IsOrganizedCrime()) return 40;
-            
+
             // Lost MC: reputação média
             if (Type == GangType.LostMC) return 25;
-            
+
             return 10;
         }
     }

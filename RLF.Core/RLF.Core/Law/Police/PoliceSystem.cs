@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using RLF.Core.Events;
+﻿using RLF.Core.Events;
 using RLF.Core.Logging;
 using RLF.Core.Systems;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace RLF.Core.Law.Police
 {

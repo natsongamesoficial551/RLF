@@ -1,5 +1,5 @@
-using System;
 using RLF.Core.Logging;
+using System;
 
 namespace RLF.Core.Utilities
 {

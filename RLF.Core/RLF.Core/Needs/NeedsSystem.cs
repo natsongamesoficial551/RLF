@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using RLF.Core.Events;
+﻿using RLF.Core.Events;
 using RLF.Core.Events.EventArgs;
 using RLF.Core.Logging;
-using RLF.Core.Systems;
 using RLF.Core.Needs.Events;
+using RLF.Core.Systems;
+using System;
+using System.Collections.Generic;
 
 namespace RLF.Core.Needs
 {

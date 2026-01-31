@@ -1,6 +1,6 @@
-﻿using System;
+﻿using RLF.Core.CharacterCreator.Enums;
+using System;
 using System.Xml.Serialization;
-using RLF.Core.CharacterCreator.Enums;
 
 namespace RLF.Core.CharacterCreator.Data
 {

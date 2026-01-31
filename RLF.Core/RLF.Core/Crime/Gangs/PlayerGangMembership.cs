@@ -29,14 +29,14 @@ namespace RLF.Core.Gangs
         public int TerritoriesCaptured { get; private set; }
         public int CrimesCommitted { get; private set; }
         public decimal MoneyEarned { get; private set; }
-        
+
         // Benefícios
         public bool CanStartMissions { get; private set; }
         public bool CanRecruitNPCs { get; private set; }
         public bool CanAccessWeapons { get; private set; }
         public bool CanAccessVehicles { get; private set; }
         public int MaxNPCFollowers { get; private set; }
-        
+
         // Histórico
         private List<GangType> _previousGangs;
         private Dictionary<GangType, int> _reputationWithGangs;
@@ -50,10 +50,10 @@ namespace RLF.Core.Gangs
             TerritoriesCaptured = 0;
             CrimesCommitted = 0;
             MoneyEarned = 0m;
-            
+
             _previousGangs = new List<GangType>();
             _reputationWithGangs = new Dictionary<GangType, int>();
-            
+
             UpdateBenefits();
         }
 
@@ -63,16 +63,16 @@ namespace RLF.Core.Gangs
         public bool JoinGang(GangType gang)
         {
             if (CurrentGang.HasValue) return false;
-            
+
             CurrentGang = gang;
             Rank = GangRank.Prospect;
             Respect = 10; // Começa com respeito baixo
             JoinedAt = DateTime.Now;
-            
+
             // Reseta estatísticas
             MissionsCompleted = 0;
             TerritoriesCaptured = 0;
-            
+
             UpdateBenefits();
             return true;
         }
@@ -83,16 +83,16 @@ namespace RLF.Core.Gangs
         public void LeaveGang()
         {
             if (!CurrentGang.HasValue) return;
-            
+
             // Adiciona ao histórico
             _previousGangs.Add(CurrentGang.Value);
-            
+
             // Reseta
             CurrentGang = null;
             Rank = GangRank.Prospect;
             Respect = 0;
             JoinedAt = null;
-            
+
             UpdateBenefits();
         }
 
@@ -111,7 +111,7 @@ namespace RLF.Core.Gangs
         public void DecreaseRespect(int amount)
         {
             Respect = Math.Max(0, Respect - amount);
-            
+
             // Se respeito chegar a 0, é expulso
             if (Respect <= 0 && CurrentGang.HasValue)
             {
@@ -129,7 +129,7 @@ namespace RLF.Core.Gangs
         private void CheckForPromotion()
         {
             GangRank newRank = CalculateRankFromRespect();
-            
+
             if (newRank > Rank)
             {
                 Rank = newRank;
@@ -143,7 +143,7 @@ namespace RLF.Core.Gangs
         private void CheckForDemotion()
         {
             GangRank newRank = CalculateRankFromRespect();
-            
+
             if (newRank < Rank)
             {
                 Rank = newRank;
@@ -253,7 +253,7 @@ namespace RLF.Core.Gangs
         public void RecordMoneyEarned(decimal amount)
         {
             MoneyEarned += amount;
-            
+
             // Respeito extra por cada $1000 ganhos
             int respectBonus = (int)(amount / 1000m);
             if (respectBonus > 0)
@@ -269,14 +269,14 @@ namespace RLF.Core.Gangs
         {
             if (CurrentGang.HasValue) return false;
             if (!gangData.CanRecruitPlayer) return false;
-            
+
             // Verifica se já foi membro e traiu
             if (_previousGangs.Contains(gang))
             {
                 // Traidores não podem voltar
                 return false;
             }
-            
+
             // Verifica requisitos de crimes e reputação
             return gangData.CanRecruitPlayerWithRequirements(CrimesCommitted, GetReputationWithGang(gang));
         }
@@ -297,7 +297,7 @@ namespace RLF.Core.Gangs
         {
             if (_reputationWithGangs.ContainsKey(gang))
                 return _reputationWithGangs[gang];
-            
+
             return 0; // Neutro por padrão
         }
 
@@ -342,7 +342,7 @@ namespace RLF.Core.Gangs
         {
             if (!JoinedAt.HasValue)
                 return TimeSpan.Zero;
-            
+
             return DateTime.Now - JoinedAt.Value;
         }
 

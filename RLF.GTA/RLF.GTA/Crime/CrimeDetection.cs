@@ -3,6 +3,7 @@ using GTA;
 using GTA.Math;
 using GTA.Native;
 using RLF.Core.Crime;
+using RLF.Core.Safety;
 using CoreCrimeType = RLF.Core.Crime.CrimeType;
 
 namespace RLF.GTA.Crime
@@ -10,9 +11,24 @@ namespace RLF.GTA.Crime
     /// <summary>
     /// Sistema de detecção automática de crimes cometidos pelo jogador no mundo.
     /// ✅ CORRIGIDO: Funciona com Character Creator (atualiza referência do player)
+    /// ✅ INTEGRADO: Safety System para tick adaptativo
     /// </summary>
     public class CrimeDetection
     {
+        #region Constants
+
+        private const string SAFETY_SYSTEM_ID = "RLF.GTA.CrimeDetection";
+        private const string SAFETY_DISPLAY_NAME = "Crime Detection";
+        private const int NORMAL_TICK_MS = 100;      // 10x por segundo normal
+        private const int REDUCED_TICK_MS = 300;     // ~3x por segundo reduzido
+        private const int MINIMAL_TICK_MS = 1000;    // 1x por segundo mínimo
+
+        private const float DETECTION_INTERVAL = 0.1f;
+
+        #endregion
+
+        #region Fields
+
         private readonly CrimeSystem _crimeSystem;
 
         // ✅ REMOVIDO: private readonly Ped _player; (era imutável)
@@ -28,10 +44,21 @@ namespace RLF.GTA.Crime
         private Ped _lastAssaultTarget;
         private int _lastPlayerHealth;
 
-        private const float DETECTION_INTERVAL = 0.1f;
         private float _detectionTimer;
 
+        // 🛡️ Safety System
+        private bool _registeredInSafety;
+        private bool _usingSafetyTick;
+
+        #endregion
+
+        #region Properties
+
         public bool IsEnabled { get; set; }
+
+        #endregion
+
+        #region Constructor
 
         public CrimeDetection(CrimeSystem crimeSystem)
         {
@@ -53,9 +80,116 @@ namespace RLF.GTA.Crime
             _detectionTimer = 0f;
             IsEnabled = true;
 
-            CrimeLogger.Log("✅ CrimeDetection inicializado (Character Creator Compatible)");
+            // 🛡️ Registra no Safety System
+            RegisterInSafetySystem();
+
+            CrimeLogger.Log("✅ CrimeDetection inicializado (Character Creator Compatible + Safety Integrated)");
         }
 
+        #endregion
+
+        #region Safety System Integration
+
+        /// <summary>
+        /// Registra o sistema no Safety System para tick adaptativo.
+        /// </summary>
+        private void RegisterInSafetySystem()
+        {
+            try
+            {
+                var safetyManager = SafeExecutionManager.Instance;
+
+                // Verifica se o Safety está disponível e inicializado
+                if (safetyManager == null || !safetyManager.IsInitialized)
+                {
+                    CrimeLogger.Log("⚠️ CrimeDetection: Safety System não disponível, usando tick manual");
+                    _registeredInSafety = false;
+                    _usingSafetyTick = false;
+                    return;
+                }
+
+                // Registra com prioridade Normal e categoria Crime
+                safetyManager.RegisterSystem(
+                    systemId: SAFETY_SYSTEM_ID,
+                    displayName: SAFETY_DISPLAY_NAME,
+                    category: SystemCategory.Crime,
+                    priority: TickPriority.Normal,
+                    tickCallback: OnSafetyTick,
+                    normalTickRateMs: NORMAL_TICK_MS,
+                    reducedTickRateMs: REDUCED_TICK_MS,
+                    minimalTickRateMs: MINIMAL_TICK_MS,
+                    canRunCallback: CanCrimeDetectionRun
+                );
+
+                _registeredInSafety = true;
+                _usingSafetyTick = true;
+
+                CrimeLogger.Log($"✅ CrimeDetection: Registrado no Safety System (Normal: {NORMAL_TICK_MS}ms, Reduced: {REDUCED_TICK_MS}ms, Minimal: {MINIMAL_TICK_MS}ms)");
+            }
+            catch (Exception ex)
+            {
+                CrimeLogger.Log($"❌ CrimeDetection: Erro ao registrar no Safety System: {ex.Message}");
+                _registeredInSafety = false;
+                _usingSafetyTick = false;
+            }
+        }
+
+        /// <summary>
+        /// Remove o registro do Safety System.
+        /// </summary>
+        private void UnregisterFromSafetySystem()
+        {
+            if (!_registeredInSafety)
+                return;
+
+            try
+            {
+                SafeExecutionManager.Instance?.UnregisterSystem(SAFETY_SYSTEM_ID);
+                _registeredInSafety = false;
+                _usingSafetyTick = false;
+                CrimeLogger.Log("✅ CrimeDetection: Removido do Safety System");
+            }
+            catch (Exception ex)
+            {
+                CrimeLogger.Log($"❌ CrimeDetection: Erro ao remover do Safety System: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Callback que determina se o CrimeDetection pode rodar.
+        /// Retorna false para pular o tick em certas condições.
+        /// </summary>
+        private bool CanCrimeDetectionRun()
+        {
+            // Não roda se desabilitado
+            if (!IsEnabled) return false;
+
+            // Não roda se player inválido
+            Ped player = Player;
+            if (player == null || !player.Exists() || !player.IsAlive)
+                return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Tick controlado pelo Safety System.
+        /// Chamado com frequência adaptativa baseada no contexto do jogo.
+        /// </summary>
+        private void OnSafetyTick()
+        {
+            // Executa a detecção de crimes
+            PerformCrimeDetection();
+        }
+
+        #endregion
+
+        #region Update
+
+        /// <summary>
+        /// Método Update chamado externamente (ex: por um Script SHVDN).
+        /// Se registrado no Safety, apenas valida. Se não, faz detecção manual.
+        /// </summary>
         public void Update(float deltaTime)
         {
             if (!IsEnabled) return;
@@ -64,14 +198,39 @@ namespace RLF.GTA.Crime
             Ped player = Player;
             if (player == null || !player.Exists() || !player.IsAlive) return;
 
+            // 🛡️ Se usando Safety System, o tick é controlado por lá
+            if (_usingSafetyTick)
+            {
+                // O Safety System chama OnSafetyTick() automaticamente
+                // Não precisa fazer nada aqui
+                return;
+            }
+
+            // 🔄 Fallback: tick manual se Safety não disponível
             _detectionTimer += deltaTime;
             if (_detectionTimer < DETECTION_INTERVAL) return;
             _detectionTimer = 0f;
+
+            PerformCrimeDetection();
+        }
+
+        /// <summary>
+        /// Executa a lógica de detecção de crimes.
+        /// Chamado pelo Safety System ou pelo Update manual.
+        /// </summary>
+        private void PerformCrimeDetection()
+        {
+            Ped player = Player;
+            if (player == null || !player.Exists() || !player.IsAlive) return;
 
             DetectWeaponCrimes(player);
             DetectVehicleTheft(player);
             DetectAssaults(player);
         }
+
+        #endregion
+
+        #region Crime Detection Methods
 
         private void DetectWeaponCrimes(Ped player)
         {
@@ -305,6 +464,10 @@ namespace RLF.GTA.Crime
             }
         }
 
+        #endregion
+
+        #region Helper Methods
+
         private bool IsNearCivilians(Ped player, float radius)
         {
             if (player == null || !player.Exists()) return false;
@@ -392,11 +555,20 @@ namespace RLF.GTA.Crime
             return streetName ?? "Unknown Street";
         }
 
+        #endregion
+
+        #region Shutdown
+
         public void Shutdown()
         {
+            // 🛡️ Remove do Safety System
+            UnregisterFromSafetySystem();
+
             _lastVehicle = null;
             _lastAssaultTarget = null;
             CrimeLogger.Log("🔄 CrimeDetection desligado");
         }
+
+        #endregion
     }
 }

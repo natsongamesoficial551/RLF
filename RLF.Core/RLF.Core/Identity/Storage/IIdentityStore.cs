@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using RLF.Core.Identity.Documents;
+﻿using RLF.Core.Identity.Documents;
+using System.Collections.Generic;
 
 namespace RLF.Core.Identity.Storage
 {

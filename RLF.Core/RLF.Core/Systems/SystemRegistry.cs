@@ -1,45 +1,23 @@
+using RLF.Core.Logging;
 using System;
 using System.Collections.Generic;
-using RLF.Core.Logging;
-using RLF.Core.Scheduling;
 
 namespace RLF.Core.Systems
 {
     /// <summary>
     /// Gerenciador central de sistemas do Real Life Framework.
-    /// Integra automaticamente com TaskScheduler quando disponÌvel.
     /// </summary>
     public sealed class SystemRegistry
     {
         private readonly Logger _logger;
         private readonly Dictionary<string, SystemBase> _systems;
 
-        private TaskScheduler _scheduler;
-        private bool _useScheduler;
-
         public int Count => _systems.Count;
-        public bool UsingScheduler => _useScheduler && _scheduler != null;
 
         public SystemRegistry(Logger logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _systems = new Dictionary<string, SystemBase>(StringComparer.OrdinalIgnoreCase);
-            _useScheduler = false;
-        }
-
-        /// <summary>
-        /// Conecta o registry ao TaskScheduler.
-        /// Deve ser chamado antes de StartAll().
-        /// </summary>
-        public void SetScheduler(TaskScheduler scheduler)
-        {
-            _scheduler = scheduler;
-            _useScheduler = scheduler != null;
-
-            if (_useScheduler)
-            {
-                _logger.Info($"SystemRegistry: Scheduler conectado (Budget={scheduler.TickBudgetMs}ms)");
-            }
         }
 
         /// <summary>
@@ -55,7 +33,7 @@ namespace RLF.Core.Systems
 
             if (_systems.ContainsKey(system.Name))
             {
-                _logger.Warning($"SystemRegistry: Sistema '{system.Name}' j· est· registrado");
+                _logger.Warning($"SystemRegistry: Sistema '{system.Name}' j√° est√° registrado");
                 return false;
             }
 
@@ -74,7 +52,7 @@ namespace RLF.Core.Systems
 
             if (!_systems.TryGetValue(name, out var system))
             {
-                _logger.Warning($"SystemRegistry: Sistema '{name}' n„o encontrado");
+                _logger.Warning($"SystemRegistry: Sistema '{name}' n√£o encontrado");
                 return false;
             }
 
@@ -83,19 +61,13 @@ namespace RLF.Core.Systems
                 system.Stop();
             }
 
-            // Remove do scheduler se estiver usando
-            if (_useScheduler && _scheduler != null)
-            {
-                _scheduler.Unregister(name);
-            }
-
             _systems.Remove(name);
             _logger.Info($"SystemRegistry: Sistema '{name}' removido");
             return true;
         }
 
         /// <summary>
-        /// ObtÈm um sistema pelo nome.
+        /// Obt√©m um sistema pelo nome.
         /// </summary>
         public SystemBase Get(string name)
         {
@@ -106,7 +78,7 @@ namespace RLF.Core.Systems
         }
 
         /// <summary>
-        /// ObtÈm um sistema tipado.
+        /// Obt√©m um sistema tipado.
         /// </summary>
         public T Get<T>(string name) where T : SystemBase
         {
@@ -114,7 +86,7 @@ namespace RLF.Core.Systems
         }
 
         /// <summary>
-        /// Verifica se um sistema est· registrado.
+        /// Verifica se um sistema est√° registrado.
         /// </summary>
         public bool Has(string name)
         {
@@ -122,7 +94,7 @@ namespace RLF.Core.Systems
         }
 
         /// <summary>
-        /// Inicia todos os sistemas e registra no scheduler.
+        /// Inicia todos os sistemas.
         /// </summary>
         public void StartAll()
         {
@@ -133,18 +105,9 @@ namespace RLF.Core.Systems
 
             foreach (var system in _systems.Values)
             {
-                // Configura se usa scheduler
-                system.SetUseScheduler(_useScheduler);
-
                 if (system.Start())
                 {
                     success++;
-
-                    // Registra no scheduler apÛs iniciar
-                    if (_useScheduler && _scheduler != null)
-                    {
-                        _scheduler.Register(system);
-                    }
                 }
                 else
                 {
@@ -153,11 +116,6 @@ namespace RLF.Core.Systems
             }
 
             _logger.Info($"SystemRegistry: {success} iniciado(s), {failed} falha(s)");
-
-            if (_useScheduler)
-            {
-                _logger.Info($"SystemRegistry: {success} sistema(s) registrado(s) no Scheduler");
-            }
         }
 
         /// <summary>
@@ -177,14 +135,9 @@ namespace RLF.Core.Systems
 
         /// <summary>
         /// Executa Tick() em todos os sistemas.
-        /// APENAS usado quando scheduler est· desabilitado.
         /// </summary>
         public void TickAll()
         {
-            // Se scheduler est· ativo, ele controla os ticks
-            if (_useScheduler && _scheduler != null && _scheduler.IsEnabled)
-                return;
-
             foreach (var system in _systems.Values)
             {
                 system.Tick();
@@ -205,15 +158,6 @@ namespace RLF.Core.Systems
         public void Clear()
         {
             StopAll();
-
-            if (_scheduler != null)
-            {
-                foreach (var name in _systems.Keys)
-                {
-                    _scheduler.Unregister(name);
-                }
-            }
-
             _systems.Clear();
             _logger.Info("SystemRegistry: Todos os sistemas removidos");
         }

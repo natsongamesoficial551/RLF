@@ -1,10 +1,10 @@
-﻿using System;
+﻿using RLF.Core.Debug;
 using RLF.Core.Events;
 using RLF.Core.Events.EventArgs;
+using RLF.Core.Identity.Events;
 using RLF.Core.Logging;
 using RLF.Core.Systems;
-using RLF.Core.Debug;
-using RLF.Core.Identity.Events;
+using System;
 
 namespace RLF.Core.Law
 {
