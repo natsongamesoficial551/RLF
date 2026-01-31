@@ -13,21 +13,19 @@ namespace RLF.GTA.Jobs.Postal
     public sealed class PostalJobController : Script
     {
         private PostalJob _job;
-        private PostalBikeManager _bikeManager;
         private PostalTaskManager _taskManager;
         private PostalLocationProvider _locationProvider;
 
         private enum PostalState
         {
             Idle,
-            NeedBike,
-            DrivingToPickup,
+            WaitingForBike,
             OnDelivery
         }
 
         private PostalState _currentState;
-        private Vector3 _pickupLocation;
-        private Blip _pickupBlip;
+        private Vehicle _currentBike;
+        private Blip _bikeBlip;
 
         private bool _initialized;
         private bool _lastShiftWasActive;
@@ -62,12 +60,8 @@ namespace RLF.GTA.Jobs.Postal
                 case PostalState.Idle:
                     break;
 
-                case PostalState.NeedBike:
-                    HandleNeedBike();
-                    break;
-
-                case PostalState.DrivingToPickup:
-                    HandleDrivingToPickup();
+                case PostalState.WaitingForBike:
+                    HandleWaitingForBike();
                     break;
 
                 case PostalState.OnDelivery:
@@ -107,7 +101,6 @@ namespace RLF.GTA.Jobs.Postal
                 core.EventManager.Subscribe("job:shift_started",
                     new System.EventHandler<RLF.Core.Events.EventArgs.RLFEventArgs>(OnShiftStarted));
 
-                _bikeManager = new PostalBikeManager();
                 _taskManager = new PostalTaskManager();
                 _locationProvider = new PostalLocationProvider();
 
@@ -130,7 +123,7 @@ namespace RLF.GTA.Jobs.Postal
             if (shiftIsActive && !_lastShiftWasActive && _currentState == PostalState.Idle)
             {
                 RLFDebug.Info(DebugChannel.System, "[PostalController] Turno ativo detectado");
-                StartPickupPhase();
+                StartWaitingForBike();
             }
 
             _lastShiftWasActive = shiftIsActive;
@@ -148,7 +141,7 @@ namespace RLF.GTA.Jobs.Postal
 
                 if (_currentState == PostalState.Idle)
                 {
-                    StartPickupPhase();
+                    StartWaitingForBike();
                 }
             }
             catch (Exception ex)
@@ -157,144 +150,57 @@ namespace RLF.GTA.Jobs.Postal
             }
         }
 
-        private void StartPickupPhase()
+        private void StartWaitingForBike()
         {
-            try
-            {
-                _pickupLocation = _locationProvider.GetRandomPickupLocation();
-                _currentState = PostalState.NeedBike;
-
-                float distance = Game.Player.Character.Position.DistanceTo(_pickupLocation);
-
-                RLFDebug.Info(DebugChannel.System, $"[PostalController] Pickup: {_pickupLocation} (Distância: {distance:F0}m)");
-
-                if (_pickupBlip != null && _pickupBlip.Exists())
-                {
-                    _pickupBlip.Delete();
-                    _pickupBlip = null;
-                }
-
-                _pickupBlip = World.CreateBlip(_pickupLocation);
-
-                if (_pickupBlip == null || !_pickupBlip.Exists())
-                {
-                    int blipHandle = Function.Call<int>(Hash.ADD_BLIP_FOR_COORD,
-                        _pickupLocation.X,
-                        _pickupLocation.Y,
-                        _pickupLocation.Z);
-
-                    if (blipHandle != 0)
-                    {
-                        _pickupBlip = new Blip(blipHandle);
-                    }
-                }
-
-                if (_pickupBlip == null || !_pickupBlip.Exists())
-                {
-                    RLFDebug.Error(DebugChannel.System, "[PostalController] Falha ao criar blip");
-                    global::GTA.UI.Notification.Show("~r~Erro ao marcar local de retirada");
-                    return;
-                }
-
-                Function.Call(Hash.SET_BLIP_SPRITE, _pickupBlip.Handle, (int)BlipSprite.Standard);
-                Function.Call(Hash.SET_BLIP_COLOUR, _pickupBlip.Handle, (int)BlipColor.Blue);
-                Function.Call(Hash.SET_BLIP_SCALE, _pickupBlip.Handle, 1.2f);
-                Function.Call(Hash.SET_BLIP_AS_SHORT_RANGE, _pickupBlip.Handle, false);
-                Function.Call(Hash.BEGIN_TEXT_COMMAND_SET_BLIP_NAME, "STRING");
-                Function.Call(Hash.ADD_TEXT_COMPONENT_SUBSTRING_PLAYER_NAME, "Retirada de Bicicleta");
-                Function.Call(Hash.END_TEXT_COMMAND_SET_BLIP_NAME, _pickupBlip.Handle);
-
-                World.WaypointPosition = _pickupLocation;
-
-                global::GTA.UI.Notification.Show(
-                    $"~b~Ponto de Retirada Marcado~w~\n" +
-                    $"Dirija-se ao local para pegar sua bicicleta\n" +
-                    $"~y~{_job.CurrentShift.TasksTotal}~w~ entregas disponíveis\n" +
-                    $"~g~Não é necessário CNH!"
-                );
-
-                RLFDebug.Info(DebugChannel.System, $"[PostalController] Blip criado com sucesso");
-            }
-            catch (Exception ex)
-            {
-                global::GTA.UI.Notification.Show("~r~Erro ao iniciar turno");
-                RLFDebug.Error(DebugChannel.System, "[PostalController] Erro ao iniciar pickup", ex);
-            }
+            _currentState = PostalState.WaitingForBike;
+            RLFDebug.Info(DebugChannel.System, "[PostalController] Aguardando jogador pegar bicicleta");
         }
 
-        private void HandleNeedBike()
+        private void HandleWaitingForBike()
         {
             Ped player = Game.Player.Character;
             if (player == null || !player.Exists())
                 return;
 
-            float distance = player.Position.DistanceTo(_pickupLocation);
-
-            if (distance < 5f)
+            // Verificar se o jogador entrou em uma bicicleta
+            if (player.IsInVehicle())
             {
-                global::GTA.UI.Screen.ShowHelpTextThisFrame(
-                    "Pressione ~INPUT_CONTEXT~ para pegar a bicicleta dos correios"
-                );
+                Vehicle vehicle = player.CurrentVehicle;
 
-                if (Game.IsKeyPressed(System.Windows.Forms.Keys.E))
+                // Verificar se é uma bicicleta
+                if (vehicle != null && vehicle.Exists() && vehicle.Model.IsBicycle)
                 {
-                    if (_bikeManager.SpawnBike(_pickupLocation))
+                    _currentBike = vehicle;
+
+                    // Remover blip da bicicleta se existir
+                    if (_bikeBlip != null && _bikeBlip.Exists())
                     {
-                        if (_pickupBlip != null && _pickupBlip.Exists())
-                        {
-                            _pickupBlip.Delete();
-                            _pickupBlip = null;
-                        }
-
-                        player.Task.EnterVehicle(_bikeManager.CurrentBike, VehicleSeat.Driver);
-                        _currentState = PostalState.DrivingToPickup;
-
-                        global::GTA.UI.Notification.Show(
-                            "~g~Bicicleta dos Correios Disponível~w~\n" +
-                            "Monte na bicicleta para começar as entregas"
-                        );
-
-                        RLFDebug.Info(DebugChannel.System, "[PostalController] Bicicleta spawnada");
+                        _bikeBlip.Delete();
+                        _bikeBlip = null;
                     }
+
+                    // Iniciar primeira entrega
+                    Vector3 deliveryAddress = _locationProvider.GetRandomDeliveryAddress();
+                    _taskManager.StartTask(deliveryAddress);
+
+                    _currentState = PostalState.OnDelivery;
+
+                    global::GTA.UI.Notification.Show(
+                        $"~b~Primeira Entrega~w~\n" +
+                        $"Leve a correspondência até o destino marcado\n" +
+                        $"~y~{_job.CurrentShift.TasksRemaining}~w~ entregas restantes"
+                    );
+
+                    RLFDebug.Info(DebugChannel.System, "[PostalController] Primeira entrega iniciada");
                 }
             }
-        }
-
-        private void HandleDrivingToPickup()
-        {
-            Ped player = Game.Player.Character;
-
-            if (!_bikeManager.HasBike)
-            {
-                global::GTA.UI.Notification.Show("~r~Bicicleta dos correios perdida\n~w~Turno cancelado");
-                EndShift();
-                return;
-            }
-
-            if (!player.IsInVehicle(_bikeManager.CurrentBike))
-                return;
-
-            _bikeManager.RemoveBikeBlip();
-
-            Vector3 deliveryAddress = _locationProvider.GetRandomDeliveryAddress();
-            _taskManager.StartTask(deliveryAddress);
-
-            _currentState = PostalState.OnDelivery;
-
-            global::GTA.UI.Notification.Show(
-                $"~b~Nova Entrega de Correspondência~w~\n" +
-                $"Leve a correspondência até o destino marcado\n" +
-                $"~y~{_job.CurrentShift.TasksRemaining}~w~ entregas restantes"
-            );
-
-            RLFDebug.Info(DebugChannel.System, "[PostalController] Primeira entrega iniciada");
         }
 
         private void HandleOnDelivery()
         {
             Ped player = Game.Player.Character;
 
-            if (!_bikeManager.HasBike)
+            if (_currentBike == null || !_currentBike.Exists())
             {
                 global::GTA.UI.Notification.Show("~r~Bicicleta dos correios perdida\n~w~Turno cancelado");
                 EndShift();
@@ -347,14 +253,22 @@ namespace RLF.GTA.Jobs.Postal
 
         private void EndShift()
         {
-            if (_pickupBlip != null && _pickupBlip.Exists())
+            _taskManager.Cleanup();
+
+            // Remover blip da bicicleta se existir
+            if (_bikeBlip != null && _bikeBlip.Exists())
             {
-                _pickupBlip.Delete();
-                _pickupBlip = null;
+                _bikeBlip.Delete();
+                _bikeBlip = null;
             }
 
-            _taskManager.Cleanup();
-            _bikeManager.Cleanup();
+            // Deletar bicicleta
+            if (_currentBike != null && _currentBike.Exists())
+            {
+                _currentBike.IsPersistent = false;
+                _currentBike.Delete();
+                _currentBike = null;
+            }
 
             if (_job.CurrentShift.IsCompleted)
             {
@@ -385,11 +299,16 @@ namespace RLF.GTA.Jobs.Postal
         {
             try
             {
-                if (_pickupBlip != null && _pickupBlip.Exists())
-                    _pickupBlip.Delete();
+                if (_bikeBlip != null && _bikeBlip.Exists())
+                    _bikeBlip.Delete();
 
                 _taskManager?.Cleanup();
-                _bikeManager?.Cleanup();
+
+                if (_currentBike != null && _currentBike.Exists())
+                {
+                    _currentBike.IsPersistent = false;
+                    _currentBike.Delete();
+                }
             }
             catch { }
         }

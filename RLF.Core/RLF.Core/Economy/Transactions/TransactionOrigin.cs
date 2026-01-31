@@ -15,12 +15,18 @@
         Tax,
 
         // Crimes
-        Crime,          // ✅ ADICIONADO - Crime genérico
+        Crime,          // Crime genérico
         RobberyNPC,
         RobberyATM,
         RobberyBank,
-        RobberyStore,   // ✅ ADICIONADO - Roubo de loja
+        RobberyStore,   // Roubo de loja
         HouseTheft,
+
+        // Gangues
+        GangMission,        // Missões de gangue
+        GangTerritory,      // Renda de territórios
+        GangActivity,       // Atividades de gangue
+        GangRecruitment,    // Recrutamento
 
         // Penalidades
         Fine,

@@ -202,6 +202,8 @@
 
 xcopy /Y "$(TargetPath)" "C:\Users\borge\OneDrive\Documentos\MODPACK RLF\ARQUIVOS PRINCIPAIS"
 
-xcopy /Y "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V\scripts\RLF\"</PostBuildEvent>
+xcopy /Y "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V\scripts\RLF\"
+
+xcopy /Y "$(TargetPath)" "C:\Users\borge\OneDrive\Documentos\MODPACK RLF\ARQUIVOS PRINCIPAIS\Pasta Raiz Do Gta V\Grand Theft Auto V\scripts\RLF"</PostBuildEvent>
   </PropertyGroup>
 </Project>

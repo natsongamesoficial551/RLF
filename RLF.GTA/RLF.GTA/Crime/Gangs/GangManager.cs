@@ -9,11 +9,12 @@ using LemonUI.Menus;
 using RLF.Core.Crime;
 using RLF.Core.Economy;
 using RLF.Core.Gangs;
+using RLF.Core.Gangs.Missions;
 
 namespace RLF.GTA.Gangs
 {
     /// <summary>
-    /// Gang Manager com LemonUI - VERSÃO CORRIGIDA
+    /// Gang Manager COMPLETO - Recrutamento + Missões + Emboscadas
     /// NÃO herda de Script - é gerenciado pelo CrimeManager
     /// </summary>
     public class GangManager
@@ -23,6 +24,11 @@ namespace RLF.GTA.Gangs
         private GangActivitySystem _activitySystem;
         private CrimeSystem _crimeSystem;
         private EconomySystem _economySystem;
+
+        // ✅ SISTEMAS DE MISSÃO E EMBOSCADA
+        private GangMissionGenerator _missionGenerator;
+        private GangMissionController _missionController;
+        private GangAmbushSystem _ambushSystem;
 
         // LemonUI
         private global::LemonUI.ObjectPool _menuPool;
@@ -42,7 +48,7 @@ namespace RLF.GTA.Gangs
         private float _interactionCooldown = 0f;
 
         private const float INTERACTION_DISTANCE = 10.0f;
-        private const float INTERACTION_COOLDOWN = 0.5f; // 500ms entre aberturas de menu
+        private const float INTERACTION_COOLDOWN = 0.5f;
 
         public GangManager(CrimeSystem crimeSystem, EconomySystem economySystem)
         {
@@ -62,34 +68,31 @@ namespace RLF.GTA.Gangs
             {
                 Notification.Show("~b~[Gang System] ~w~Loading...");
 
-                // LemonUI Pool
                 _menuPool = new global::LemonUI.ObjectPool();
-                Notification.Show("~g~LemonUI Pool OK");
 
                 _gangSystem = new GangSystem();
                 _gangSystem.Initialize();
-                Notification.Show("~g~GangSystem OK");
 
                 _playerMembership = new PlayerGangMembership();
-                Notification.Show("~g~PlayerMembership OK");
 
                 _activitySystem = new GangActivitySystem(_gangSystem, _crimeSystem);
-                Notification.Show("~g~ActivitySystem OK");
+
+                // ✅ INICIALIZA SISTEMAS DE MISSÃO
+                _missionGenerator = new GangMissionGenerator(_gangSystem, _playerMembership);
+                _missionController = new GangMissionController(_gangSystem, _playerMembership, _crimeSystem, _economySystem, _missionGenerator);
+
+                // ✅ INICIALIZA SISTEMA DE EMBOSCADAS
+                _ambushSystem = new GangAmbushSystem(_gangSystem, _playerMembership);
 
                 SetupRecruitmentLocations();
-                Notification.Show($"~g~{_recruitmentLocations.Count} recruitment locations");
-
                 CreateTerritoryBlips();
-                Notification.Show($"~g~{_territoryBlips.Count} territory blips");
-
                 CreateRecruitmentBlips();
-                Notification.Show($"~g~{_recruitmentBlips.Count} recruitment blips");
 
                 _isInitialized = true;
                 _lastDebugTime = DateTime.Now;
 
                 Notification.Show("~g~[Gang System] READY!");
-                Notification.Show("~y~Press E near gang blips | F7 = Debug");
+                Notification.Show("~y~E = Interact | F7 = Gang Debug | F8 = Force Mission | F6 = Force Ambush");
             }
             catch (Exception ex)
             {
@@ -97,31 +100,27 @@ namespace RLF.GTA.Gangs
             }
         }
 
-        /// <summary>
-        /// Chamado pelo CrimeManager a cada frame
-        /// </summary>
         public void Update(float deltaTime)
         {
             if (!_isInitialized) return;
 
             try
             {
-                // Atualiza cooldown
                 if (_interactionCooldown > 0f)
-                {
                     _interactionCooldown -= deltaTime;
-                }
 
-                // Processa menus LemonUI
                 _menuPool.Process();
 
-                // Atualiza sistemas
+                // Crime systems
                 _activitySystem.Update(deltaTime);
 
-                // Verifica interação com locais de recrutamento
+                // ✅ ATUALIZA SISTEMAS DE MISSÃO E EMBOSCADA
+                _missionGenerator.Update(deltaTime);
+                _missionController.Update(deltaTime);
+                _ambushSystem.Update(deltaTime);
+
                 CheckRecruitmentInteractions();
 
-                // Debug
                 if (_debugEnabled && (DateTime.Now - _lastDebugTime).TotalSeconds >= 1.0)
                 {
                     ShowDebugInfo();
@@ -134,17 +133,37 @@ namespace RLF.GTA.Gangs
             }
         }
 
-        /// <summary>
-        /// Chamado pelo CrimeManager quando uma tecla é pressionada
-        /// </summary>
         public void OnKeyDown(System.Windows.Forms.Keys key)
         {
             try
             {
+                // F7 = Gang Debug Toggle
                 if (key == System.Windows.Forms.Keys.F7)
                 {
                     _debugEnabled = !_debugEnabled;
+                    _missionGenerator.SetDebugMode(_debugEnabled);
+                    _missionController.SetDebugMode(_debugEnabled);
+                    _ambushSystem.SetDebugMode(_debugEnabled);
                     Notification.Show(_debugEnabled ? "~g~Gang Debug ON" : "~r~Gang Debug OFF");
+                }
+
+                // F8 = Forçar geração de missão (debug)
+                if (key == System.Windows.Forms.Keys.F8 && _debugEnabled)
+                {
+                    if (_playerMembership.IsInGang())
+                    {
+                        OpenMissionsMenu();
+                    }
+                    else
+                    {
+                        Notification.Show("~r~Você precisa estar em uma gangue!");
+                    }
+                }
+
+                // F6 = Forçar emboscada (debug)
+                if (key == System.Windows.Forms.Keys.F6 && _debugEnabled)
+                {
+                    _ambushSystem.ForceAmbush();
                 }
             }
             catch (Exception ex)
@@ -152,6 +171,8 @@ namespace RLF.GTA.Gangs
                 Notification.Show($"~r~[Gang System] Key Error: {ex.Message}");
             }
         }
+
+        // [RestanteDo código anterior permanece igual até SetupRecruitmentLocations...]
 
         private void SetupRecruitmentLocations()
         {
@@ -280,14 +301,11 @@ namespace RLF.GTA.Gangs
                     isNearAnyRecruitment = true;
                     nearbyGang = location.Gang;
 
-                    // Mostra help text
                     string helpText = $"Pressione ~INPUT_CONTEXT~ para interagir com {location.Gang.GetDisplayName()}";
                     global::GTA.UI.Screen.ShowHelpTextThisFrame(helpText);
 
-                    // Verifica se E foi pressionado
                     if (Game.IsControlJustPressed(Control.Context))
                     {
-                        // Verifica cooldown
                         if (_interactionCooldown <= 0f)
                         {
                             OpenRecruitmentMenu(location.Gang);
@@ -295,7 +313,7 @@ namespace RLF.GTA.Gangs
                         }
                     }
 
-                    break; // Só processa o mais próximo
+                    break;
                 }
             }
 
@@ -308,23 +326,15 @@ namespace RLF.GTA.Gangs
             try
             {
                 GangData gang = _gangSystem.GetGang(gangType);
-                if (gang == null)
-                {
-                    Notification.Show($"~r~ERROR: Gang {gangType} not found!");
-                    return;
-                }
+                if (gang == null) return;
 
-                // Fecha menu anterior se existir
                 if (_currentMenu != null && _currentMenu.Visible)
-                {
                     _currentMenu.Visible = false;
-                }
 
-                // Cria novo menu
-                _currentMenu = new global::LemonUI.Menus.NativeMenu("Gang Recruitment", $"~b~{gang.Name}");
+                _currentMenu = new global::LemonUI.Menus.NativeMenu("Gang Menu", $"~b~{gang.Name}");
                 _menuPool.Add(_currentMenu);
 
-                // ===== INFO =====
+                // Gang Info
                 global::LemonUI.Menus.NativeItem infoItem = new global::LemonUI.Menus.NativeItem("Gang Info", $"Members: {gang.TotalMembers} | Power: {gang.PowerLevel}");
                 infoItem.Enabled = false;
                 _currentMenu.Add(infoItem);
@@ -333,76 +343,59 @@ namespace RLF.GTA.Gangs
                 territoriesItem.Enabled = false;
                 _currentMenu.Add(territoriesItem);
 
-                global::LemonUI.Menus.NativeItem reputationItem = new global::LemonUI.Menus.NativeItem("Reputation", $"{gang.Reputation}/100");
-                reputationItem.Enabled = false;
-                _currentMenu.Add(reputationItem);
-
                 _currentMenu.Add(new global::LemonUI.Menus.NativeItem("─────────────────"));
 
-                // ===== JÁ É MEMBRO =====
-                if (_playerMembership.IsInGang())
+                // Se é membro desta gangue
+                if (_playerMembership.IsInGang(gangType))
                 {
-                    if (_playerMembership.IsInGang(gangType))
+                    global::LemonUI.Menus.NativeItem currentRankItem = new global::LemonUI.Menus.NativeItem("Your Rank", $"~y~{_playerMembership.GetRankName()}");
+                    currentRankItem.Enabled = false;
+                    _currentMenu.Add(currentRankItem);
+
+                    global::LemonUI.Menus.NativeItem respectItem = new global::LemonUI.Menus.NativeItem("Your Respect", $"~b~{_playerMembership.Respect}/100");
+                    respectItem.Enabled = false;
+                    _currentMenu.Add(respectItem);
+
+                    _currentMenu.Add(new global::LemonUI.Menus.NativeItem("─────────────────"));
+
+                    // ✅ BOTÃO DE MISSÕES
+                    global::LemonUI.Menus.NativeItem missionsBtn = new global::LemonUI.Menus.NativeItem("~g~Gang Missions", "View and accept gang missions");
+                    missionsBtn.Activated += (sender, e) =>
                     {
-                        // É membro desta gangue
-                        global::LemonUI.Menus.NativeItem currentRankItem = new global::LemonUI.Menus.NativeItem("Your Rank", $"~y~{_playerMembership.GetRankName()}");
-                        currentRankItem.Enabled = false;
-                        _currentMenu.Add(currentRankItem);
+                        OpenMissionsMenu();
+                    };
+                    _currentMenu.Add(missionsBtn);
 
-                        global::LemonUI.Menus.NativeItem respectItem = new global::LemonUI.Menus.NativeItem("Your Respect", $"~b~{_playerMembership.Respect}/100");
-                        respectItem.Enabled = false;
-                        _currentMenu.Add(respectItem);
-
-                        _currentMenu.Add(new global::LemonUI.Menus.NativeItem("─────────────────"));
-
-                        global::LemonUI.Menus.NativeItem leaveBtn = new global::LemonUI.Menus.NativeItem("~r~Leave Gang", "Leave this gang permanently");
-                        leaveBtn.Activated += (sender, e) =>
-                        {
-                            _playerMembership.LeaveGang();
-                            Notification.Show($"~r~You left {gang.Type.GetColor()}{gang.Name}");
-                            _currentMenu.Visible = false;
-                        };
-                        _currentMenu.Add(leaveBtn);
-                    }
-                    else
+                    global::LemonUI.Menus.NativeItem leaveBtn = new global::LemonUI.Menus.NativeItem("~r~Leave Gang", "Leave this gang permanently");
+                    leaveBtn.Activated += (sender, e) =>
                     {
-                        // Já é de outra gangue
-                        global::LemonUI.Menus.NativeItem alreadyInGangItem = new global::LemonUI.Menus.NativeItem("~r~Already in another gang", "Leave your current gang first");
-                        alreadyInGangItem.Enabled = false;
-                        _currentMenu.Add(alreadyInGangItem);
-                    }
+                        _playerMembership.LeaveGang();
+                        Notification.Show($"~r~You left {gang.Type.GetColor()}{gang.Name}");
+                        _currentMenu.Visible = false;
+                    };
+                    _currentMenu.Add(leaveBtn);
+                }
+                else if (_playerMembership.IsInGang())
+                {
+                    global::LemonUI.Menus.NativeItem alreadyInGangItem = new global::LemonUI.Menus.NativeItem("~r~Already in another gang", "Leave your current gang first");
+                    alreadyInGangItem.Enabled = false;
+                    _currentMenu.Add(alreadyInGangItem);
                 }
                 else
                 {
-                    // ===== NÃO É MEMBRO - MOSTRAR REQUISITOS =====
-                    int minCrimes = gang.Type.IsStreetGang() ? 5 :
-                                   gang.Type.IsOrganizedCrime() ? 15 :
-                                   gang.Type == GangType.LostMC ? 10 : 5;
-
-                    int minRep = gang.Type.IsStreetGang() ? 10 :
-                                gang.Type.IsOrganizedCrime() ? 40 :
-                                gang.Type == GangType.LostMC ? 25 : 10;
+                    // Join gang logic (anterior)
+                    int minCrimes = gang.Type.IsStreetGang() ? 5 : gang.Type.IsOrganizedCrime() ? 15 : 10;
+                    int minRep = gang.Type.IsStreetGang() ? 10 : gang.Type.IsOrganizedCrime() ? 40 : 25;
 
                     global::LemonUI.Menus.NativeItem reqItem = new global::LemonUI.Menus.NativeItem("Requirements", $"{minCrimes} crimes | {minRep} reputation");
                     reqItem.Enabled = false;
                     _currentMenu.Add(reqItem);
 
-                    global::LemonUI.Menus.NativeItem yourCrimesItem = new global::LemonUI.Menus.NativeItem("Your Crimes", $"{_playerMembership.CrimesCommitted} committed");
-                    yourCrimesItem.Enabled = false;
-                    _currentMenu.Add(yourCrimesItem);
-
-                    global::LemonUI.Menus.NativeItem yourRepItem = new global::LemonUI.Menus.NativeItem("Your Reputation", $"{_playerMembership.GetReputationWithGang(gangType)}");
-                    yourRepItem.Enabled = false;
-                    _currentMenu.Add(yourRepItem);
-
-                    _currentMenu.Add(new global::LemonUI.Menus.NativeItem("─────────────────"));
-
                     bool canJoin = _playerMembership.CanJoinGang(gangType, gang);
 
                     global::LemonUI.Menus.NativeItem joinBtn = new global::LemonUI.Menus.NativeItem(
                         canJoin ? "~g~Join Gang" : "~r~Cannot Join Yet",
-                        canJoin ? "Become a member" : "Requirements not met"
-                    );
+                        canJoin ? "Become a member" : "Requirements not met");
 
                     joinBtn.Enabled = canJoin;
 
@@ -413,7 +406,6 @@ namespace RLF.GTA.Gangs
                             if (_playerMembership.JoinGang(gangType))
                             {
                                 Notification.Show($"~g~Welcome to {gang.Type.GetColor()}{gang.Name}!");
-                                Notification.Show($"~y~Rank: ~w~{_playerMembership.GetRankName()}");
                                 _currentMenu.Visible = false;
                             }
                         };
@@ -422,19 +414,77 @@ namespace RLF.GTA.Gangs
                     _currentMenu.Add(joinBtn);
                 }
 
-                // ===== CLOSE =====
                 global::LemonUI.Menus.NativeItem closeBtn = new global::LemonUI.Menus.NativeItem("Close");
                 closeBtn.Activated += (sender, e) => { _currentMenu.Visible = false; };
                 _currentMenu.Add(closeBtn);
 
-                // Mostra o menu
                 _currentMenu.Visible = true;
-
-                Notification.Show($"~g~Opening menu for {gang.Name}");
             }
             catch (Exception ex)
             {
-                Notification.Show($"~r~OpenRecruitmentMenu ERROR: {ex.Message}");
+                Notification.Show($"~r~Menu Error: {ex.Message}");
+            }
+        }
+
+        // ✅ NOVO: Menu de Missões
+        private void OpenMissionsMenu()
+        {
+            try
+            {
+                if (!_playerMembership.IsInGang())
+                {
+                    Notification.Show("~r~You need to be in a gang!");
+                    return;
+                }
+
+                if (_currentMenu != null && _currentMenu.Visible)
+                    _currentMenu.Visible = false;
+
+                _currentMenu = new global::LemonUI.Menus.NativeMenu("Gang Missions", $"~b~Available Missions");
+                _menuPool.Add(_currentMenu);
+
+                var missions = _missionGenerator.GetAvailableMissions();
+
+                if (missions.Count == 0)
+                {
+                    global::LemonUI.Menus.NativeItem noMissionsItem = new global::LemonUI.Menus.NativeItem("~r~No missions available", "Check back later");
+                    noMissionsItem.Enabled = false;
+                    _currentMenu.Add(noMissionsItem);
+                }
+                else
+                {
+                    foreach (var mission in missions)
+                    {
+                        string colorCode = mission.DifficultyLevel <= 2 ? "~g~" : mission.DifficultyLevel <= 3 ? "~y~" : "~r~";
+
+                        global::LemonUI.Menus.NativeItem missionItem = new global::LemonUI.Menus.NativeItem(
+                            $"{colorCode}{mission.Name}",
+                            $"{mission.Description}~n~" +
+                            $"~w~Reward: ~g~${mission.MoneyReward}~w~ | Respect: ~y~+{mission.ReputationReward}~n~" +
+                            $"~w~Difficulty: {colorCode}{"★".Repeat(mission.DifficultyLevel)}"
+                        );
+
+                        missionItem.Activated += (sender, e) =>
+                        {
+                            if (_missionController.StartMission(mission.Id))
+                            {
+                                _currentMenu.Visible = false;
+                            }
+                        };
+
+                        _currentMenu.Add(missionItem);
+                    }
+                }
+
+                global::LemonUI.Menus.NativeItem closeBtn = new global::LemonUI.Menus.NativeItem("Close");
+                closeBtn.Activated += (sender, e) => { _currentMenu.Visible = false; };
+                _currentMenu.Add(closeBtn);
+
+                _currentMenu.Visible = true;
+            }
+            catch (Exception ex)
+            {
+                Notification.Show($"~r~Missions Menu Error: {ex.Message}");
             }
         }
 
@@ -445,21 +495,6 @@ namespace RLF.GTA.Gangs
             Ped player = Game.Player.Character;
             if (player == null || !player.Exists()) return;
 
-            Vector3 playerPos = player.Position;
-
-            float nearestDist = float.MaxValue;
-            string nearestGang = "None";
-
-            foreach (var location in _recruitmentLocations.Values)
-            {
-                float dist = Vector3.Distance(playerPos, location.Position);
-                if (dist < nearestDist)
-                {
-                    nearestDist = dist;
-                    nearestGang = location.Gang.GetDisplayName();
-                }
-            }
-
             string gangInfo = _playerMembership.IsInGang()
                 ? $"{_playerMembership.CurrentGang.Value.GetColor()}{_playerMembership.CurrentGang.Value.GetDisplayName()}"
                 : "~w~None";
@@ -468,24 +503,19 @@ namespace RLF.GTA.Gangs
                 ? $"~y~{_playerMembership.GetRankName()} ~w~({_playerMembership.Respect})"
                 : "~w~N/A";
 
-            var currentTerritory = TerritoryDatabase.GetTerritoryAtPosition(
-                player.Position.X, player.Position.Y, player.Position.Z);
-
-            string territoryInfo = currentTerritory != null
-                ? $"~b~{currentTerritory.Name}"
-                : "~w~None";
-
             int activeNPCs = _activitySystem.GetActiveGangMemberCount();
-            int crimes = _playerMembership.CrimesCommitted;
+            int availableMissions = _missionGenerator.GetAvailableMissions().Count;
+            bool hasActiveMission = _missionController.HasActiveMission;
+            bool ambushActive = _ambushSystem.IsAmbushActive;
 
             string debugText =
                 $"~y~=== GANG DEBUG ===~n~" +
-                $"~w~Your Gang: {gangInfo}~n~" +
+                $"~w~Gang: {gangInfo}~n~" +
                 $"~w~Rank: {rankInfo}~n~" +
-                $"~w~Crimes: ~r~{crimes}~n~" +
-                $"~w~Territory: {territoryInfo}~n~" +
-                $"~w~Nearest Gang: ~p~{nearestGang} ~w~({nearestDist:F1}m)~n~" +
-                $"~w~Active Gang NPCs: ~g~{activeNPCs}";
+                $"~w~Active NPCs: ~g~{activeNPCs}~n~" +
+                $"~w~Missions: ~b~{availableMissions} available~n~" +
+                $"~w~Active Mission: {(hasActiveMission ? "~g~YES" : "~r~NO")}~n~" +
+                $"~w~Ambush: {(ambushActive ? "~r~ACTIVE!" : "~g~None")}";
 
             global::GTA.UI.Screen.ShowSubtitle(debugText, 1050);
         }
@@ -494,9 +524,6 @@ namespace RLF.GTA.Gangs
         {
             try
             {
-                Notification.Show("~y~[Gang System] Shutting down...");
-
-                // Remove blips
                 foreach (var blip in _territoryBlips.Values)
                 {
                     if (blip != null && blip.Exists())
@@ -511,16 +538,13 @@ namespace RLF.GTA.Gangs
                 }
                 _recruitmentBlips.Clear();
 
-                // Fecha menus
                 if (_currentMenu != null)
-                {
                     _currentMenu.Visible = false;
-                }
 
                 _activitySystem?.Shutdown();
+                _missionController?.Shutdown();
+                _ambushSystem?.Shutdown();
                 _gangSystem?.Shutdown();
-
-                Notification.Show("~g~[Gang System] Shutdown complete");
             }
             catch (Exception ex)
             {
@@ -540,49 +564,6 @@ namespace RLF.GTA.Gangs
             }
         }
 
-        public void OnPlayerEarnedMoney(decimal amount)
-        {
-            if (amount <= 0) return;
-            _playerMembership.RecordMoneyEarned(amount);
-        }
-
-        public bool CaptureTerritory(string territoryId)
-        {
-            if (!_playerMembership.IsInGang()) return false;
-
-            var territory = TerritoryDatabase.GetTerritoryById(territoryId);
-            if (territory == null) return false;
-
-            var playerGang = _playerMembership.CurrentGang.Value;
-            var previousGang = territory.ControllingGang;
-
-            if (previousGang.HasValue)
-            {
-                _gangSystem.TransferTerritory(territoryId, previousGang.Value, playerGang);
-            }
-            else
-            {
-                var gang = _gangSystem.GetGang(playerGang);
-                gang?.AddTerritory(territoryId);
-            }
-
-            territory.StartAttack(playerGang);
-            territory.UpdateAttack(1.0f);
-
-            if (_territoryBlips.ContainsKey(territoryId))
-            {
-                _territoryBlips[territoryId].Color = GetBlipColorForGang(playerGang);
-                _territoryBlips[territoryId].Name = $"{territory.Name} ({playerGang.GetDisplayName()})";
-            }
-
-            _playerMembership.RecordTerritoryCapture();
-
-            Notification.Show($"~g~Territory Captured!~n~" +
-                $"~w~{territory.Name} is now controlled by {playerGang.GetColor()}{playerGang.GetDisplayName()}");
-
-            return true;
-        }
-
         public GangType? GetPlayerGang() => _playerMembership.CurrentGang;
         public bool IsPlayerInGang(GangType gang) => _playerMembership.IsInGang(gang);
         public GangRank? GetPlayerRank() => _playerMembership.IsInGang() ? _playerMembership.Rank : (GangRank?)null;
@@ -593,5 +574,14 @@ namespace RLF.GTA.Gangs
         public Vector3 Position { get; set; }
         public string Name { get; set; }
         public GangType Gang { get; set; }
+    }
+}
+
+// Helper extension
+public static class StringExtensions
+{
+    public static string Repeat(this string s, int count)
+    {
+        return new string(s.ToCharArray()[0], count);
     }
 }

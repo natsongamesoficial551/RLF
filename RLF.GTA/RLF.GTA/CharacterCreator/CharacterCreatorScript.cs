@@ -30,9 +30,13 @@ namespace RLF.GTA.CharacterCreator
         private int _creatorTimer = 0;
 
         private CharacterCreatorSystem _system;
+        private CharacterRespawnManager _respawnManager;
+
         private bool _isCreatorActive;
         private bool _isWaitingForName;
         private bool _hasAutoLoaded;
+        private bool _blockExitWithoutCharacter = true;
+        private int _exitAttemptCount = 0;
 
         private CharacterData _currentCharacter;
         private int _currentCharacterSlot = -1;
@@ -42,9 +46,7 @@ namespace RLF.GTA.CharacterCreator
 
         private string _cachedPauseName = null;
         private bool _pauseNameApplied = false;
-        private int _simulationEnforceTimer = 0;
 
-        // ⭐ FIX: Sistema de aplicação atrasada
         private CharacterData _pendingLoadCharacter;
         private int _pendingLoadSlot = -1;
         private int _pendingLoadTimer = 0;
@@ -92,6 +94,8 @@ namespace RLF.GTA.CharacterCreator
                 _system = CharacterCreatorSystem.Instance;
                 _system.Initialize();
 
+                _respawnManager = new CharacterRespawnManager();
+
                 IdentityIntegration.Initialize();
                 EconomyIntegration.Initialize(false);
 
@@ -113,14 +117,12 @@ namespace RLF.GTA.CharacterCreator
         {
             try
             {
-                _menuPool.ProcessMenus();
-
-                _simulationEnforceTimer++;
-                if (_simulationEnforceTimer >= 60)
+                if (!_isCreatorActive)
                 {
-                    EnforceSimulationMode();
-                    _simulationEnforceTimer = 0;
+                    _respawnManager.Update();
                 }
+
+                _menuPool.ProcessMenus();
 
                 if (!_hasAutoLoaded && !_isCreatorActive)
                 {
@@ -139,7 +141,6 @@ namespace RLF.GTA.CharacterCreator
                     }
                 }
 
-                // ⭐ FIX: Sistema de aplicação com delay
                 if (_pendingLoadActive)
                 {
                     _pendingLoadTimer++;
@@ -151,7 +152,6 @@ namespace RLF.GTA.CharacterCreator
 
                     if (_pendingLoadTimer == 30)
                     {
-                        // Trocar modelo se necessário
                         PedHash requiredHash = _pendingLoadCharacter.Gender == CharacterGender.Male
                             ? PedHash.FreemodeMale01
                             : PedHash.FreemodeFemale01;
@@ -174,11 +174,9 @@ namespace RLF.GTA.CharacterCreator
                         Ped player = Game.Player.Character;
                         if (player != null && player.Exists())
                         {
-                            // Aplicar personagem
                             _system.Manager.Builder.SetPed(player);
                             _system.Manager.Builder.ApplyFullCharacter(_pendingLoadCharacter);
 
-                            // Teleportar para posição
                             Vector3 spawnPos = CharacterPositionManager.GetSafePosition(_pendingLoadCharacter);
                             float spawnHeading = _pendingLoadCharacter.LastHeading;
 
@@ -187,13 +185,20 @@ namespace RLF.GTA.CharacterCreator
                             player.IsPositionFrozen = false;
                             player.IsInvincible = false;
 
+                            WeaponManager.ApplyWeaponsToPlayer(_pendingLoadCharacter.Weapons);
+                            VehicleManager.RestorePlayerVehicle(_pendingLoadCharacter.Vehicle);
+
                             System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
                             System.Diagnostics.Debug.WriteLine($"✅ PERSONAGEM APLICADO: {_pendingLoadCharacter.Name}");
-                            System.Diagnostics.Debug.WriteLine($"   Spawn: ({spawnPos.X:F2}, {spawnPos.Y:F2}, {spawnPos.Z:F2})");
+                            System.Diagnostics.Debug.WriteLine($"   📍 Spawn: ({spawnPos.X:F2}, {spawnPos.Y:F2}, {spawnPos.Z:F2})");
+                            System.Diagnostics.Debug.WriteLine($"   🔫 Armas: {_pendingLoadCharacter.Weapons.GetTotalWeaponCount()}");
+                            System.Diagnostics.Debug.WriteLine($"   🚗 Veículo: {(_pendingLoadCharacter.Vehicle.HasVehicle ? "Restaurado" : "Nenhum")}");
                             System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
 
                             _currentCharacter = _pendingLoadCharacter;
                             _currentCharacterSlot = _pendingLoadSlot;
+
+                            _respawnManager.SetCurrentCharacter(_currentCharacter);
 
                             global::GTA.UI.Screen.FadeIn(500);
                             global::GTA.UI.Notification.Show($"~g~{_pendingLoadCharacter.Name}~w~ carregado!");
@@ -411,9 +416,15 @@ namespace RLF.GTA.CharacterCreator
                 if (player == null || !player.Exists()) return;
 
                 CharacterPositionManager.SaveCurrentPosition(_currentCharacter);
+                _currentCharacter.Weapons = WeaponManager.CapturePlayerWeapons();
+                _currentCharacter.Vehicle = VehicleManager.CapturePlayerVehicle();
+
                 _system.SlotManager.SaveSlot(_currentCharacterSlot, _currentCharacter);
 
-                System.Diagnostics.Debug.WriteLine($"💾 Auto-save: {_currentCharacter.Name} @ ({_currentCharacter.LastPositionX:F2}, {_currentCharacter.LastPositionY:F2}, {_currentCharacter.LastPositionZ:F2})");
+                System.Diagnostics.Debug.WriteLine($"💾 Auto-save completo: {_currentCharacter.Name}");
+                System.Diagnostics.Debug.WriteLine($"   📍 Posição: ({_currentCharacter.LastPositionX:F2}, {_currentCharacter.LastPositionY:F2}, {_currentCharacter.LastPositionZ:F2})");
+                System.Diagnostics.Debug.WriteLine($"   🔫 Armas: {_currentCharacter.Weapons.GetTotalWeaponCount()}");
+                System.Diagnostics.Debug.WriteLine($"   🚗 Veículo: {(_currentCharacter.Vehicle.HasVehicle ? "Sim" : "Não")}");
             }
             catch (Exception ex)
             {
@@ -447,7 +458,6 @@ namespace RLF.GTA.CharacterCreator
 
                     global::GTA.UI.Notification.Show($"~g~Carregando~w~ {lastCharacter.Name}...");
 
-                    // ⭐ FIX: Usar sistema de aplicação atrasada
                     _pendingLoadCharacter = lastCharacter;
                     _pendingLoadSlot = lastSlot;
                     _pendingLoadTimer = 0;
@@ -466,6 +476,37 @@ namespace RLF.GTA.CharacterCreator
             try
             {
                 if (_isWaitingForName) return;
+
+                if (e.KeyCode == Keys.Escape && _isCreatorActive)
+                {
+                    if (!_system.SlotManager.HasAnyCharacter())
+                    {
+                        _exitAttemptCount++;
+
+                        if (_exitAttemptCount >= 3)
+                        {
+                            global::GTA.UI.Notification.Show("~r~[BLOQUEADO]~w~ Você precisa criar um personagem!");
+                            global::GTA.UI.Notification.Show("~y~Não é possível sair sem criar um personagem!");
+                            _exitAttemptCount = 0;
+                        }
+                        else
+                        {
+                            global::GTA.UI.Notification.Show("~r~Crie um personagem para jogar~w~");
+                        }
+
+                        if (!_mainMenu.Visible && !AnySubmenuVisible())
+                        {
+                            _mainMenu.Visible = true;
+                        }
+
+                        return;
+                    }
+
+                    if (!_mainMenu.Visible && !AnySubmenuVisible())
+                    {
+                        ExitWithoutSaving();
+                    }
+                }
 
                 if (e.KeyCode == _goToCreatorKey && !_isCreatorActive)
                 {
@@ -490,37 +531,8 @@ namespace RLF.GTA.CharacterCreator
                 {
                     _mainMenu.Visible = !_mainMenu.Visible;
                 }
-
-                if (e.KeyCode == Keys.Escape && _isCreatorActive && !_mainMenu.Visible && !AnySubmenuVisible())
-                {
-                    ExitWithoutSaving();
-                }
             }
             catch { }
-        }
-
-        private void EnforceSimulationMode()
-        {
-            try
-            {
-                Ped player = Game.Player.Character;
-                if (player == null || !player.Exists()) return;
-
-                Function.Call(Hash.SET_MISSION_FLAG, false);
-                Function.Call(Hash.CLEAR_PLAYER_WANTED_LEVEL, Game.Player.Handle);
-                Function.Call(Hash.SET_PLAYER_WANTED_LEVEL, Game.Player.Handle, 0, false);
-                Function.Call(Hash.SET_PLAYER_WANTED_LEVEL_NOW, Game.Player.Handle, false);
-                Function.Call(Hash.SET_PLAYER_SWITCH_OUTRO, 0, 0);
-                Function.Call(Hash.SET_GAME_PAUSED, false);
-
-                player.IsPositionFrozen = false;
-                player.IsInvincible = false;
-                player.CanRagdoll = true;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"❌ Erro EnforceSimulationMode: {ex.Message}");
-            }
         }
 
         private void GoToCreator()
@@ -538,6 +550,13 @@ namespace RLF.GTA.CharacterCreator
         {
             try
             {
+                if (!_system.SlotManager.HasAnyCharacter())
+                {
+                    global::GTA.UI.Notification.Show("~r~[BLOQUEADO]~w~ Crie um personagem primeiro!");
+                    _mainMenu.Visible = true;
+                    return;
+                }
+
                 global::GTA.UI.Screen.FadeOut(500);
                 _pendingExit = true;
                 _exitTimer = 0;
@@ -592,6 +611,8 @@ namespace RLF.GTA.CharacterCreator
                     {
                         _currentCharacter = character;
                         _currentCharacterSlot = slot;
+
+                        _respawnManager.SetCurrentCharacter(_currentCharacter);
 
                         System.Diagnostics.Debug.WriteLine($"💾 Personagem salvo: {name} no Slot {slot}");
                         global::GTA.UI.Notification.Show($"~g~Personagem '{name}' salvo!");
@@ -648,6 +669,8 @@ namespace RLF.GTA.CharacterCreator
                 if (_currentCharacter != null && _currentCharacterSlot >= 0)
                 {
                     CharacterPositionManager.SaveCurrentPosition(_currentCharacter);
+                    _currentCharacter.Weapons = WeaponManager.CapturePlayerWeapons();
+                    _currentCharacter.Vehicle = VehicleManager.CapturePlayerVehicle();
                     _system.SlotManager.SaveSlot(_currentCharacterSlot, _currentCharacter);
                 }
 
@@ -661,13 +684,10 @@ namespace RLF.GTA.CharacterCreator
                 _loadCharacterMenu.Visible = false;
 
                 System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
-                System.Diagnostics.Debug.WriteLine($"🔥 LOAD: {character.Name} (Slot {slotIndex})");
-                System.Diagnostics.Debug.WriteLine($"   Pos: ({character.LastPositionX:F2}, {character.LastPositionY:F2}, {character.LastPositionZ:F2})");
-                System.Diagnostics.Debug.WriteLine("════════════════════════════════════════");
+                System.Diagnostics.Debug.WriteLine($"🔥 LOAD COMPLETO: {character.Name} (Slot {slotIndex})");
 
                 global::GTA.UI.Notification.Show($"~g~Carregando~w~ {character.Name}...");
 
-                // ⭐ FIX: Usar sistema de aplicação atrasada
                 _pendingLoadCharacter = character;
                 _pendingLoadSlot = slotIndex;
                 _pendingLoadTimer = 0;

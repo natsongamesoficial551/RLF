@@ -84,6 +84,7 @@
     <Compile Include="AmmuNation\AmmuNationSystem.cs" />
     <Compile Include="Bootstrap\CharacterCreatorBootstrap.cs" />
     <Compile Include="CharacterCreator\CharacterCreatorScript.cs" />
+    <Compile Include="CharacterCreator\Core\CharacterRespawnManager.cs" />
     <Compile Include="CharacterCreator\Core\VehicleManager.cs" />
     <Compile Include="CharacterCreator\Core\WeaponManager.cs" />
     <Compile Include="CharacterCreator\Data\CharacterData.cs" />
@@ -146,7 +147,10 @@
     <Compile Include="Crime\EstablishmentDatabase.cs" />
     <Compile Include="Crime\EstablishmentRobbery.cs" />
     <Compile Include="Crime\Gangs\GangActivitySystem.cs" />
+    <Compile Include="Crime\Gangs\GangAmbushSystem.cs" />
     <Compile Include="Crime\Gangs\GangManager.cs" />
+    <Compile Include="Crime\Gangs\GangMissionController.cs" />
+    <Compile Include="Crime\Gangs\GangMissionGenerator.cs" />
     <Compile Include="Crime\NPCReactionController.cs" />
     <Compile Include="Crime\NPCReactionProfile.cs" />
     <Compile Include="Crime\NPCWallet.cs" />
@@ -182,6 +186,9 @@
     <Compile Include="Jobs\Postal\PostalPhoneHandler.cs" />
     <Compile Include="Jobs\Postal\PostalShiftManager.cs" />
     <Compile Include="Jobs\Postal\PostalTaskManager.cs" />
+    <Compile Include="Jobs\Postal\PostalWorkEntry.cs" />
+    <Compile Include="Jobs\Postal\PostalWorkLocations.cs" />
+    <Compile Include="Jobs\Postal\PostalWorkSystem.cs" />
     <Compile Include="Phone\Apps\BankPhoneApp.cs" />
     <Compile Include="Integration\IntegratedCharacterEconomySystem.cs" />
     <Compile Include="Jobs\Delivery\DeliveryConfig.cs" />
@@ -261,7 +268,6 @@
     <Compile Include="Vehicles\VehicleWorldSpawner.cs" />
     <Compile Include="WorldOverrides\VanillaImpoundBlocker.cs" />
   </ItemGroup>
-  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>xcopy /Y "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V Enhanced\scripts\RLF\"
@@ -269,6 +275,10 @@
 xcopy /Y "$(TargetPath)" "C:\Users\borge\OneDrive\Documentos\MODPACK RLF\ARQUIVOS PRINCIPAIS"
 
 xcopy /Y "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V\Scripts\RLF"
+
+xcopy /Y "$(TargetPath)" "C:\Users\borge\OneDrive\Documentos\MODPACK RLF\ARQUIVOS PRINCIPAIS\Pasta Raiz Do Gta V\Grand Theft Auto V\scripts\RLF"
+
+
 </PostBuildEvent>
   </PropertyGroup>
 </Project>

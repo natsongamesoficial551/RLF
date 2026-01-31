@@ -33,20 +33,20 @@ namespace RLF.GTA.Jobs.Postal
         {
             _shiftManager = new PostalShiftManager();
 
-            // Turno da Manhã: 8h-12h (4-7 entregas)
+            // Turno da Manhã: 05h-10h (janela para INICIAR turno)
             _schedules.Add(new ShiftSchedule(
                 ShiftType.Morning,
-                new TimeSpan(8, 0, 0),
-                new TimeSpan(12, 0, 0),
+                new TimeSpan(5, 0, 0),   // 05:00
+                new TimeSpan(10, 0, 0),  // 10:00
                 minTasks: 4,
                 maxTasks: 7
             ));
 
-            // Turno da Tarde: 14h-18h (4-7 entregas)
+            // Turno da Noite: 20h-00h (janela para INICIAR turno)
             _schedules.Add(new ShiftSchedule(
-                ShiftType.Afternoon,
-                new TimeSpan(14, 0, 0),
-                new TimeSpan(18, 0, 0),
+                ShiftType.Night,
+                new TimeSpan(20, 0, 0),  // 20:00
+                new TimeSpan(23, 59, 59), // 23:59:59 (meia-noite)
                 minTasks: 4,
                 maxTasks: 7
             ));
